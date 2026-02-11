@@ -37,3 +37,4 @@ data/
 htmlcov/
 .coverage
 .coverage.*
+flutter_windows_3.27.0-stable.zip
