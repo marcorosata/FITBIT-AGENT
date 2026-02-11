@@ -2,30 +2,24 @@
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-
-def _is_railway() -> bool:
-    """Detect Railway deployment via any of its well-known env vars."""
-    return any(
-        os.getenv(v)
-        for v in ("RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
-    )
+_RAILWAY_URL = "https://fitbit-agent-production.up.railway.app"
 
 
 def _resolve_db_dir() -> Path:
-    """Return (and create) the directory that holds the SQLite file."""
-    if _is_railway():
-        d = Path("/tmp/data")
-    else:
-        d = _PROJECT_ROOT / "data"
+    """Return (and create) the directory that holds the SQLite file.
+
+    Always uses /tmp/data for Railway deployment.
+    """
+    d = Path("/tmp/data")
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -56,7 +50,7 @@ class Settings(BaseSettings):
     # ── Fitbit OAuth 2 ────────────────────────────────────────
     fitbit_client_id: str = ""
     fitbit_client_secret: str = ""
-    fitbit_redirect_uri: str = "http://localhost:8000/auth/fitbit/callback"
+    fitbit_redirect_uri: str = f"{_RAILWAY_URL}/auth/fitbit/callback"
     fitbit_access_token: str = ""
     fitbit_refresh_token: str = ""
 
@@ -70,7 +64,10 @@ class Settings(BaseSettings):
 
     # ── API server ────────────────────────────────────────────
     api_host: str = "0.0.0.0"
-    api_port: int = int(os.getenv("PORT", "8000"))  # Railway sets PORT env var
+    api_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("PORT", "API_PORT"),
+    )
     api_secret_key: str = "change-me-to-a-random-secret"
 
     # ── Notifications ─────────────────────────────────────────
