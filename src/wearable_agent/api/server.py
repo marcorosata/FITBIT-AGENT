@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from wearable_agent.agent.core import WearableAgent
 from wearable_agent.api.auth import router as auth_router
@@ -24,7 +25,7 @@ from wearable_agent.api.routes.participants import router as participants_router
 from wearable_agent.api.routes.rules import router as rules_router
 from wearable_agent.api.routes.sync import router as sync_router, set_scheduler
 from wearable_agent.api.websocket import ws_manager
-from wearable_agent.config import get_settings
+from wearable_agent.config import get_settings, _PROJECT_ROOT
 from wearable_agent.models import SensorReading
 from wearable_agent.monitors.heart_rate import create_heart_rate_engine
 from wearable_agent.monitors.rules import RuleEngine
@@ -181,6 +182,11 @@ app = FastAPI(
 
 # ── Middleware ────────────────────────────────────────────────
 setup_middleware(app)
+
+# ── Static files ─────────────────────────────────────────────
+static_dir = _PROJECT_ROOT / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ── Routers ───────────────────────────────────────────────────
 app.include_router(admin_router)
