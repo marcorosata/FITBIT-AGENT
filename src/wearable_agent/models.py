@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 class DeviceType(str, Enum):
     """Supported wearable device families."""
     FITBIT = "fitbit"
+    LIFESNAPS = "lifesnaps"
     APPLE_WATCH = "apple_watch"
     GARMIN = "garmin"
     GENERIC = "generic"
@@ -39,6 +40,7 @@ class MetricType(str, Enum):
     BODY_FAT = "body_fat"
     VO2_MAX = "vo2_max"
     ACTIVE_ZONE_MINUTES = "active_zone_minutes"
+    STRESS = "stress"
 
 
 class AlertSeverity(str, Enum):

@@ -30,6 +30,12 @@ data/
 *.db
 *.sqlite3
 
+# Large data files / archives
+*.zip
+*.bson
+*.csv
+scripts/rais_anonymized/
+
 # Jupyter
 .ipynb_checkpoints/
 

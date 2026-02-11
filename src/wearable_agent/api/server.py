@@ -24,6 +24,7 @@ from wearable_agent.api.routes.data import router as data_router
 from wearable_agent.api.routes.participants import router as participants_router
 from wearable_agent.api.routes.rules import router as rules_router
 from wearable_agent.api.routes.sync import router as sync_router, set_scheduler
+from wearable_agent.api.routes.lifesnaps import router as lifesnaps_router, set_pipeline as set_lifesnaps_pipeline
 from wearable_agent.api.websocket import ws_manager
 from wearable_agent.config import get_settings, _PROJECT_ROOT
 from wearable_agent.models import SensorReading
@@ -147,6 +148,9 @@ async def lifespan(app: FastAPI):
     _pipeline.add_consumer(_on_reading)
     _pipeline_task = asyncio.create_task(_pipeline.start())
 
+    # 7b. Wire LifeSnaps streaming to pipeline
+    set_lifesnaps_pipeline(_pipeline)
+
     # 8. Scheduled data collection
     if settings.scheduler_enabled:
         _scheduler_service = SchedulerService(
@@ -197,3 +201,4 @@ app.include_router(affect_router)
 app.include_router(auth_router)
 app.include_router(participants_router)
 app.include_router(sync_router)
+app.include_router(lifesnaps_router)
