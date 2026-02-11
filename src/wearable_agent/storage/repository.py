@@ -1,0 +1,426 @@
+"""Data-access layer — thin async wrappers around SQLAlchemy queries."""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from typing import Sequence
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from wearable_agent.affect.models import (
+    AffectiveState,
+    Confidence,
+    EMALabel,
+    FeatureWindow,
+    InferenceOutput,
+    ParticipantBaseline,
+    QualityFlags,
+)
+from wearable_agent.models import Alert, MetricType, SensorReading
+from wearable_agent.storage.database import (
+    AlertRow,
+    EMALabelRow,
+    FeatureWindowRow,
+    InferenceOutputRow,
+    ParticipantBaselineRow,
+    SensorReadingRow,
+    get_session_factory,
+)
+
+
+class ReadingRepository:
+    """CRUD operations for :class:`SensorReading` objects."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    # ── Write ─────────────────────────────────────────────────
+
+    async def save(self, reading: SensorReading) -> None:
+        session = await self._session()
+        row = SensorReadingRow(
+            id=reading.id,
+            participant_id=reading.participant_id,
+            device_type=reading.device_type.value,
+            metric_type=reading.metric_type.value,
+            value=reading.value,
+            unit=reading.unit,
+            timestamp=reading.timestamp,
+            metadata_json=json.dumps(reading.metadata),
+        )
+        session.add(row)
+        await session.commit()
+
+    async def save_batch(self, readings: list[SensorReading]) -> int:
+        session = await self._session()
+        rows = [
+            SensorReadingRow(
+                id=r.id,
+                participant_id=r.participant_id,
+                device_type=r.device_type.value,
+                metric_type=r.metric_type.value,
+                value=r.value,
+                unit=r.unit,
+                timestamp=r.timestamp,
+                metadata_json=json.dumps(r.metadata),
+            )
+            for r in readings
+        ]
+        session.add_all(rows)
+        await session.commit()
+        return len(rows)
+
+    # ── Read ──────────────────────────────────────────────────
+
+    async def get_latest(
+        self,
+        participant_id: str,
+        metric_type: MetricType,
+        limit: int = 1,
+    ) -> Sequence[SensorReadingRow]:
+        session = await self._session()
+        stmt = (
+            select(SensorReadingRow)
+            .where(
+                SensorReadingRow.participant_id == participant_id,
+                SensorReadingRow.metric_type == metric_type.value,
+            )
+            .order_by(SensorReadingRow.timestamp.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_range(
+        self,
+        participant_id: str,
+        metric_type: MetricType,
+        start: datetime,
+        end: datetime,
+    ) -> Sequence[SensorReadingRow]:
+        session = await self._session()
+        stmt = (
+            select(SensorReadingRow)
+            .where(
+                SensorReadingRow.participant_id == participant_id,
+                SensorReadingRow.metric_type == metric_type.value,
+                SensorReadingRow.timestamp >= start,
+                SensorReadingRow.timestamp <= end,
+            )
+            .order_by(SensorReadingRow.timestamp.asc())
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
+class AlertRepository:
+    """CRUD operations for :class:`Alert` objects."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def save(self, alert: Alert) -> None:
+        session = await self._session()
+        row = AlertRow(
+            id=alert.id,
+            participant_id=alert.participant_id,
+            metric_type=alert.metric_type.value,
+            severity=alert.severity.value,
+            message=alert.message,
+            value=alert.value,
+            threshold_low=alert.threshold_low,
+            threshold_high=alert.threshold_high,
+            timestamp=alert.timestamp,
+        )
+        session.add(row)
+        await session.commit()
+
+    async def get_by_participant(
+        self, participant_id: str, limit: int = 50
+    ) -> Sequence[AlertRow]:
+        session = await self._session()
+        stmt = (
+            select(AlertRow)
+            .where(AlertRow.participant_id == participant_id)
+            .order_by(AlertRow.timestamp.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
+# ── Affect inference repositories ─────────────────────────────
+
+
+class FeatureWindowRepository:
+    """CRUD for :class:`FeatureWindow` aggregations."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def save(self, window: FeatureWindow) -> None:
+        session = await self._session()
+        row = FeatureWindowRow(
+            id=window.id,
+            participant_id=window.participant_id,
+            window_start=window.window_start,
+            window_end=window.window_end,
+            window_duration_seconds=window.window_duration_seconds,
+            activity_context=window.activity_context.value,
+            features_json=window.model_dump_json(
+                exclude={"id", "participant_id", "window_start", "window_end",
+                          "window_duration_seconds", "activity_context", "quality"}
+            ),
+            quality_json=window.quality.model_dump_json(),
+        )
+        session.add(row)
+        await session.commit()
+
+    async def get_latest(
+        self, participant_id: str, limit: int = 1
+    ) -> Sequence[FeatureWindowRow]:
+        session = await self._session()
+        stmt = (
+            select(FeatureWindowRow)
+            .where(FeatureWindowRow.participant_id == participant_id)
+            .order_by(FeatureWindowRow.window_end.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_range(
+        self, participant_id: str, start: datetime, end: datetime
+    ) -> Sequence[FeatureWindowRow]:
+        session = await self._session()
+        stmt = (
+            select(FeatureWindowRow)
+            .where(
+                FeatureWindowRow.participant_id == participant_id,
+                FeatureWindowRow.window_start >= start,
+                FeatureWindowRow.window_end <= end,
+            )
+            .order_by(FeatureWindowRow.window_start.asc())
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
+class InferenceOutputRepository:
+    """CRUD for :class:`InferenceOutput` results."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def save(self, output: InferenceOutput) -> None:
+        session = await self._session()
+        row = InferenceOutputRow(
+            id=output.id,
+            participant_id=output.participant_id,
+            timestamp=output.timestamp,
+            feature_window_id=output.feature_window_id,
+            activity_context=output.activity_context.value,
+            arousal_score=output.state.arousal_score,
+            arousal_confidence=output.state.arousal_confidence.value,
+            stress_score=output.state.stress_score,
+            stress_confidence=output.state.stress_confidence.value,
+            valence_score=output.state.valence_score,
+            valence_confidence=output.state.valence_confidence.value,
+            dominant_emotion=output.state.dominant_emotion.value,
+            dominant_emotion_confidence=output.state.dominant_emotion_confidence.value,
+            contributing_signals_json=json.dumps(output.contributing_signals),
+            explanation=output.explanation,
+            top_features_json=json.dumps(output.top_features),
+            quality_json=output.quality.model_dump_json(),
+            model_version=output.model_version,
+        )
+        session.add(row)
+        await session.commit()
+
+    async def get_latest(
+        self, participant_id: str, limit: int = 1
+    ) -> Sequence[InferenceOutputRow]:
+        session = await self._session()
+        stmt = (
+            select(InferenceOutputRow)
+            .where(InferenceOutputRow.participant_id == participant_id)
+            .order_by(InferenceOutputRow.timestamp.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_range(
+        self, participant_id: str, start: datetime, end: datetime
+    ) -> Sequence[InferenceOutputRow]:
+        session = await self._session()
+        stmt = (
+            select(InferenceOutputRow)
+            .where(
+                InferenceOutputRow.participant_id == participant_id,
+                InferenceOutputRow.timestamp >= start,
+                InferenceOutputRow.timestamp <= end,
+            )
+            .order_by(InferenceOutputRow.timestamp.asc())
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
+class EMARepository:
+    """CRUD for :class:`EMALabel` ground-truth entries."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def save(self, label: EMALabel) -> None:
+        session = await self._session()
+        row = EMALabelRow(
+            id=label.id,
+            participant_id=label.participant_id,
+            timestamp=label.timestamp,
+            arousal=label.arousal,
+            valence=label.valence,
+            stress=label.stress,
+            emotion_tag=label.emotion_tag.value if label.emotion_tag else None,
+            context_note=label.context_note,
+            trigger=label.trigger,
+            inference_output_id=label.inference_output_id,
+        )
+        session.add(row)
+        await session.commit()
+
+    async def get_by_participant(
+        self, participant_id: str, limit: int = 50
+    ) -> Sequence[EMALabelRow]:
+        session = await self._session()
+        stmt = (
+            select(EMALabelRow)
+            .where(EMALabelRow.participant_id == participant_id)
+            .order_by(EMALabelRow.timestamp.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_range(
+        self, participant_id: str, start: datetime, end: datetime
+    ) -> Sequence[EMALabelRow]:
+        session = await self._session()
+        stmt = (
+            select(EMALabelRow)
+            .where(
+                EMALabelRow.participant_id == participant_id,
+                EMALabelRow.timestamp >= start,
+                EMALabelRow.timestamp <= end,
+            )
+            .order_by(EMALabelRow.timestamp.asc())
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def count_today(self, participant_id: str) -> int:
+        """Count EMA labels submitted today (for prompt scheduling)."""
+        session = await self._session()
+        from datetime import date
+
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        stmt = (
+            select(EMALabelRow)
+            .where(
+                EMALabelRow.participant_id == participant_id,
+                EMALabelRow.timestamp >= today_start,
+            )
+        )
+        result = await session.execute(stmt)
+        return len(result.scalars().all())
+
+
+class BaselineRepository:
+    """CRUD for :class:`ParticipantBaseline` personalised baselines."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def get(self, participant_id: str) -> ParticipantBaselineRow | None:
+        session = await self._session()
+        stmt = select(ParticipantBaselineRow).where(
+            ParticipantBaselineRow.participant_id == participant_id
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def upsert(self, baseline: ParticipantBaseline) -> None:
+        session = await self._session()
+        existing = await self.get(baseline.participant_id)
+        if existing is None:
+            row = ParticipantBaselineRow(
+                participant_id=baseline.participant_id,
+                updated_at=baseline.updated_at,
+                hr_baseline_morning=baseline.hr_baseline_morning,
+                hr_baseline_afternoon=baseline.hr_baseline_afternoon,
+                hr_baseline_evening=baseline.hr_baseline_evening,
+                hr_baseline_night=baseline.hr_baseline_night,
+                hr_baseline_rest=baseline.hr_baseline_rest,
+                hr_std_baseline=baseline.hr_std_baseline,
+                hrv_rmssd_baseline=baseline.hrv_rmssd_baseline,
+                hrv_rmssd_std=baseline.hrv_rmssd_std,
+                br_baseline=baseline.br_baseline,
+                br_std=baseline.br_std,
+                skin_temp_baseline=baseline.skin_temp_baseline,
+                sleep_duration_baseline=baseline.sleep_duration_baseline,
+                sleep_efficiency_baseline=baseline.sleep_efficiency_baseline,
+                ewma_alpha=baseline.ewma_alpha,
+                observation_count=baseline.observation_count,
+            )
+            session.add(row)
+        else:
+            existing.updated_at = baseline.updated_at
+            existing.hr_baseline_morning = baseline.hr_baseline_morning
+            existing.hr_baseline_afternoon = baseline.hr_baseline_afternoon
+            existing.hr_baseline_evening = baseline.hr_baseline_evening
+            existing.hr_baseline_night = baseline.hr_baseline_night
+            existing.hr_baseline_rest = baseline.hr_baseline_rest
+            existing.hr_std_baseline = baseline.hr_std_baseline
+            existing.hrv_rmssd_baseline = baseline.hrv_rmssd_baseline
+            existing.hrv_rmssd_std = baseline.hrv_rmssd_std
+            existing.br_baseline = baseline.br_baseline
+            existing.br_std = baseline.br_std
+            existing.skin_temp_baseline = baseline.skin_temp_baseline
+            existing.sleep_duration_baseline = baseline.sleep_duration_baseline
+            existing.sleep_efficiency_baseline = baseline.sleep_efficiency_baseline
+            existing.ewma_alpha = baseline.ewma_alpha
+            existing.observation_count = baseline.observation_count
+        await session.commit()

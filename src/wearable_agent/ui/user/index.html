@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wearable Agent — My Health</title>
+<style>
+:root {
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --border: #e8eaf0;
+  --text: #2d3436;
+  --text2: #636e72;
+  --accent: #6c5ce7;
+  --accent-light: #a29bfe;
+  --success: #00b894;
+  --warning: #f39c12;
+  --danger: #e74c3c;
+  --critical: #c0392b;
+  --info: #0984e3;
+  --radius: 16px;
+  --shadow: 0 2px 16px rgba(0,0,0,.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+/* ── App header ──────────────────────────────────────────── */
+.header {
+  background: linear-gradient(135deg, var(--accent), #a29bfe);
+  color: #fff;
+  padding: 2rem 1.5rem 1.5rem;
+  border-radius: 0 0 24px 24px;
+  position: relative;
+}
+.header h1 { font-size: 1.3rem; font-weight: 700; }
+.header .subtitle { font-size: .85rem; opacity: .85; margin-top: .2rem; }
+.header .participant-bar {
+  margin-top: 1rem;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+.header input {
+  flex: 1;
+  background: rgba(255,255,255,.2);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 10px;
+  padding: .5rem .75rem;
+  color: #fff;
+  font-size: .9rem;
+  outline: none;
+}
+.header input::placeholder { color: rgba(255,255,255,.6); }
+.header button {
+  background: rgba(255,255,255,.25);
+  border: none;
+  border-radius: 10px;
+  padding: .5rem .9rem;
+  color: #fff;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.header button:hover { background: rgba(255,255,255,.35); }
+
+/* ── Status pill ─────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: .25rem .75rem;
+  font-size: .75rem;
+  margin-top: .75rem;
+}
+.status-pill .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #00b894;
+}
+
+/* ── Content ─────────────────────────────────────────────── */
+.content { padding: 1.25rem; }
+
+/* ── Metric cards ────────────────────────────────────────── */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+}
+.metric-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.metric-card:hover { transform: translateY(-2px); }
+.metric-card .icon { font-size: 1.6rem; margin-bottom: .4rem; }
+.metric-card .label { font-size: .75rem; color: var(--text2); }
+.metric-card .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: .2rem 0;
+}
+.metric-card .unit { font-size: .75rem; color: var(--text2); }
+.metric-card .trend { font-size: .72rem; margin-top: .2rem; }
+.trend-up { color: var(--danger); }
+.trend-down { color: var(--success); }
+.trend-stable { color: var(--text2); }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-size: .95rem;
+  font-weight: 700;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+/* ── Alert list ──────────────────────────────────────────── */
+.alert-item {
+  display: flex;
+  gap: .75rem;
+  padding: .75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.alert-item:last-child { border-bottom: none; }
+.alert-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.alert-icon.warning { background: #fef3cd; }
+.alert-icon.critical { background: #f8d7da; }
+.alert-icon.info { background: #d6eaf8; }
+.alert-body { flex: 1; min-width: 0; }
+.alert-msg { font-size: .85rem; line-height: 1.4; }
+.alert-time { font-size: .72rem; color: var(--text2); margin-top: .15rem; }
+.badge {
+  display: inline-block;
+  padding: .1rem .5rem;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-warning { background: #fef3cd; color: #856404; }
+.badge-critical { background: #f8d7da; color: #721c24; }
+.badge-info { background: #d6eaf8; color: #0c5460; }
+
+/* ── Timeline ────────────────────────────────────────────── */
+.reading-list { max-height: 300px; overflow-y: auto; }
+.reading-item {
+  display: flex;
+  justify-content: space-between;
+  padding: .45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .85rem;
+}
+.reading-item:last-child { border-bottom: none; }
+
+/* ── Bottom nav ──────────────────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: .5rem 0;
+  z-index: 100;
+}
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+  background: none;
+  border: none;
+  font-size: .7rem;
+  color: var(--text2);
+  cursor: pointer;
+  padding: .3rem .5rem;
+  border-radius: 8px;
+  font-family: inherit;
+}
+.nav-btn .icon { font-size: 1.2rem; }
+.nav-btn.active { color: var(--accent); }
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text2);
+  font-size: .88rem;
+}
+
+/* ── Loading ─────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (min-width: 481px) {
+  body { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<div class="header">
+  <h1>🩺 My Health Dashboard</h1>
+  <div class="subtitle">Wearable Research Study</div>
+  <div class="participant-bar">
+    <input id="participant-id" placeholder="Your Participant ID" value="P001">
+    <button onclick="loadAll()">Go</button>
+  </div>
+  <div class="status-pill">
+    <div class="dot" id="conn-dot"></div>
+    <span id="conn-text">Connecting…</span>
+  </div>
+</div>
+
+<!-- ── Content ────────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- == Home tab == -->
+  <div class="tab-content active" id="tab-home">
+    <div class="metric-grid" id="metric-cards">
+      <div class="metric-card" onclick="switchTab('history')">
+        <div class="icon">❤️</div>
+        <div class="label">Heart Rate</div>
+        <div class="value" id="val-hr">—</div>
+        <div class="unit">bpm</div>
+        <div class="trend" id="trend-hr"></div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">👟</div>
+        <div class="label">Steps</div>
+        <div class="value" id="val-steps">—</div>
+        <div class="unit">today</div>
+        <div class="trend" id="trend-steps"></div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">😴</div>
+        <div class="label">Sleep</div>
+        <div class="value" id="val-sleep">—</div>
+        <div class="unit">hours</div>
+        <div class="trend" id="trend-sleep"></div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">🫁</div>
+        <div class="label">SpO2</div>
+        <div class="value" id="val-spo2">—</div>
+        <div class="unit">%</div>
+        <div class="trend" id="trend-spo2"></div>
+      </div>
+    </div>
+
+    <!-- Recent alerts -->
+    <div class="card">
+      <div class="card-title">🔔 Recent Notifications</div>
+      <div id="home-alerts">
+        <div class="empty">No notifications yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- == History tab == -->
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <div class="card-title">📈 Heart Rate History</div>
+      <div style="display:flex; gap:.5rem; margin-bottom:.75rem">
+        <select id="hist-metric" onchange="loadHistory()" style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.4rem; font-size:.85rem; color:var(--text);">
+          <option value="heart_rate">Heart Rate</option>
+          <option value="steps">Steps</option>
+          <option value="spo2">SpO2</option>
+          <option value="hrv">HRV</option>
+        </select>
+      </div>
+      <div id="hist-summary" style="font-size:.82rem; color:var(--text2); margin-bottom:.75rem"></div>
+      <div class="reading-list" id="hist-list">
+        <div class="empty">Select a metric and load data.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- == Alerts tab == -->
+  <div class="tab-content" id="tab-alerts">
+    <div class="card">
+      <div class="card-title">🔔 All Alerts</div>
+      <div id="all-alerts">
+        <div class="empty">No alerts found.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- == Profile tab == -->
+  <div class="tab-content" id="tab-profile">
+    <div class="card">
+      <div class="card-title">👤 Study Information</div>
+      <div style="font-size:.88rem; color:var(--text2)">
+        <p><strong>Participant ID:</strong> <span id="prof-pid">P001</span></p>
+        <p style="margin-top:.5rem"><strong>Status:</strong> <span style="color:var(--success)">Active</span></p>
+        <p style="margin-top:.5rem"><strong>Device:</strong> Fitbit</p>
+        <p style="margin-top:.5rem"><strong>Monitored Metrics:</strong> Heart Rate, Steps, Sleep, SpO2</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">ℹ️ About This Study</div>
+      <p style="font-size:.85rem; color:var(--text2); line-height:1.6">
+        You are participating in a research study that collects physiological data
+        from your wearable device. The data is used to study health patterns and
+        wellbeing. You will receive notifications if any unusual patterns are
+        detected in your data.
+      </p>
+      <p style="font-size:.85rem; color:var(--text2); margin-top:.5rem">
+        Your data is handled securely in accordance with the study protocol 
+        and applicable data protection regulations.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-title">⚙️ Preferences</div>
+      <label style="display:flex; align-items:center; gap:.5rem; font-size:.88rem; cursor:pointer">
+        <input type="checkbox" id="pref-notify" checked style="width:18px; height:18px; accent-color:var(--accent)">
+        Enable alert notifications
+      </label>
+      <label style="display:flex; align-items:center; gap:.5rem; font-size:.88rem; cursor:pointer; margin-top:.5rem">
+        <input type="checkbox" id="pref-auto" checked style="width:18px; height:18px; accent-color:var(--accent)">
+        Auto-refresh data
+      </label>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Bottom nav ─────────────────────────────────────────── -->
+<div class="bottom-nav">
+  <button class="nav-btn active" data-tab="home">
+    <span class="icon">🏠</span> Home
+  </button>
+  <button class="nav-btn" data-tab="history">
+    <span class="icon">📈</span> History
+  </button>
+  <button class="nav-btn" data-tab="alerts">
+    <span class="icon">🔔</span> Alerts
+  </button>
+  <button class="nav-btn" data-tab="profile">
+    <span class="icon">👤</span> Profile
+  </button>
+</div>
+
+<script>
+const API = '';
+
+// ── Tab navigation ────────────────────────────────────────────
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  const btn = document.querySelector(`.nav-btn[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+async function api(method, path) {
+  const r = await fetch(API + path, { method });
+  return r.json();
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function relTime(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs/24)}d ago`;
+}
+
+function alertIcon(sev) {
+  if (sev === 'critical') return { emoji: '🔴', cls: 'critical' };
+  if (sev === 'warning') return { emoji: '🟡', cls: 'warning' };
+  return { emoji: '🔵', cls: 'info' };
+}
+
+function pid() {
+  return document.getElementById('participant-id').value || 'P001';
+}
+
+// ── Data loaders ──────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('prof-pid').textContent = pid();
+  await Promise.all([checkHealth(), loadMetrics(), loadHomeAlerts(), loadHistory(), loadAllAlerts()]);
+}
+
+async function checkHealth() {
+  try {
+    await api('GET', '/health');
+    document.getElementById('conn-dot').style.background = '#00b894';
+    document.getElementById('conn-text').textContent = 'Connected';
+  } catch {
+    document.getElementById('conn-dot').style.background = '#e74c3c';
+    document.getElementById('conn-text').textContent = 'Offline';
+  }
+}
+
+async function loadMetrics() {
+  // Heart Rate
+  try {
+    const hr = await api('GET', `/readings/${pid()}?metric=heart_rate&limit=10`);
+    if (hr.length) {
+      document.getElementById('val-hr').textContent = Math.round(hr[0].value);
+      if (hr.length > 1) {
+        const diff = hr[0].value - hr[1].value;
+        const el = document.getElementById('trend-hr');
+        el.textContent = diff > 0 ? `▲ +${diff.toFixed(0)}` : diff < 0 ? `▼ ${diff.toFixed(0)}` : '● stable';
+        el.className = 'trend ' + (diff > 2 ? 'trend-up' : diff < -2 ? 'trend-down' : 'trend-stable');
+      }
+    }
+  } catch {}
+  // Steps
+  try {
+    const st = await api('GET', `/readings/${pid()}?metric=steps&limit=1`);
+    if (st.length) document.getElementById('val-steps').textContent = Math.round(st[0].value).toLocaleString();
+  } catch {}
+  // Sleep
+  try {
+    const sl = await api('GET', `/readings/${pid()}?metric=sleep&limit=1`);
+    if (sl.length) document.getElementById('val-sleep').textContent = sl[0].value.toFixed(1);
+  } catch {}
+  // SpO2
+  try {
+    const sp = await api('GET', `/readings/${pid()}?metric=spo2&limit=1`);
+    if (sp.length) document.getElementById('val-spo2').textContent = sp[0].value.toFixed(0);
+  } catch {}
+}
+
+async function loadHomeAlerts() {
+  try {
+    const alerts = await api('GET', `/alerts/${pid()}?limit=5`);
+    const el = document.getElementById('home-alerts');
+    if (!alerts.length) {
+      el.innerHTML = '<div class="empty">🎉 No notifications — everything looks good!</div>';
+      return;
+    }
+    el.innerHTML = alerts.map(a => {
+      const ic = alertIcon(a.severity);
+      return `
+        <div class="alert-item">
+          <div class="alert-icon ${ic.cls}">${ic.emoji}</div>
+          <div class="alert-body">
+            <div class="alert-msg">${escHtml(a.message)}</div>
+            <div class="alert-time">${relTime(a.timestamp)} · ${a.metric}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {}
+}
+
+async function loadAllAlerts() {
+  try {
+    const alerts = await api('GET', `/alerts/${pid()}?limit=50`);
+    const el = document.getElementById('all-alerts');
+    if (!alerts.length) {
+      el.innerHTML = '<div class="empty">No alerts recorded.</div>';
+      return;
+    }
+    el.innerHTML = alerts.map(a => {
+      const ic = alertIcon(a.severity);
+      return `
+        <div class="alert-item">
+          <div class="alert-icon ${ic.cls}">${ic.emoji}</div>
+          <div class="alert-body">
+            <div class="alert-msg">${escHtml(a.message)}</div>
+            <div class="alert-time">${fmtTime(a.timestamp)} · <span class="badge badge-${a.severity}">${a.severity}</span></div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {}
+}
+
+async function loadHistory() {
+  const metric = document.getElementById('hist-metric').value;
+  try {
+    const data = await api('GET', `/readings/${pid()}?metric=${metric}&limit=100`);
+    const list = document.getElementById('hist-list');
+    const summary = document.getElementById('hist-summary');
+    if (!data.length) {
+      list.innerHTML = '<div class="empty">No data available.</div>';
+      summary.textContent = '';
+      return;
+    }
+    const vals = data.map(r => r.value);
+    const mean = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+    summary.textContent = `${data.length} readings · Avg: ${mean} · Min: ${Math.min(...vals).toFixed(1)} · Max: ${Math.max(...vals).toFixed(1)}`;
+    list.innerHTML = data.map(r => `
+      <div class="reading-item">
+        <span>${fmtTime(r.timestamp)}</span>
+        <span><strong>${r.value}</strong> ${r.unit}</span>
+      </div>`).join('');
+  } catch {
+    document.getElementById('hist-list').innerHTML = '<div class="empty">Failed to load.</div>';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init & auto-refresh ──────────────────────────────────────
+loadAll();
+setInterval(() => {
+  if (document.getElementById('pref-auto').checked) loadAll();
+}, 15000);
+</script>
+</body>
+</html>
