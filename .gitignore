@@ -37,4 +37,18 @@ data/
 htmlcov/
 .coverage
 .coverage.*
+
+# Flutter / mobile app (kept local, not tracked)
+flutter_app/
 flutter_windows_3.27.0-stable.zip
+android/
+ios/
+web/
+lib/
+test/
+*.iml
+.metadata
+.dart_tool/
+pubspec.yaml
+pubspec.lock
+analysis_options.yaml
