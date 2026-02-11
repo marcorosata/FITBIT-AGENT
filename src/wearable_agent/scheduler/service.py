@@ -19,7 +19,6 @@ Token refresh failures are logged but do not block other participants.
 from __future__ import annotations
 
 import asyncio
-import base64
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -27,6 +26,7 @@ import httpx
 import structlog
 
 from wearable_agent.collectors.fitbit import FitbitCollector
+from wearable_agent.collectors.fitbit_oauth import refresh_fitbit_token
 from wearable_agent.config import get_settings
 from wearable_agent.models import MetricType
 from wearable_agent.storage.repository import ParticipantRepository, TokenRepository
@@ -269,24 +269,11 @@ class SchedulerService:
         Returns (new_access_token, new_refresh_token).
         """
         settings = get_settings()
-        basic = base64.b64encode(
-            f"{settings.fitbit_client_id}:{settings.fitbit_client_secret}".encode()
-        ).decode()
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://api.fitbit.com/oauth2/token",
-                headers={
-                    "Authorization": f"Basic {basic}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": refresh_token,
-                },
-            )
-            resp.raise_for_status()
-            body = resp.json()
+        body = await refresh_fitbit_token(
+            refresh_token=refresh_token,
+            client_id=settings.fitbit_client_id,
+            client_secret=settings.fitbit_client_secret,
+        )
 
         new_access = body["access_token"]
         new_refresh = body.get("refresh_token", refresh_token)

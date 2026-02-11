@@ -11,7 +11,6 @@ See: https://dev.fitbit.com/build/reference/web-api/
 from __future__ import annotations
 
 import asyncio
-import base64
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -20,6 +19,7 @@ import httpx
 import structlog
 
 from wearable_agent.collectors.base import BaseCollector
+from wearable_agent.collectors.fitbit_oauth import refresh_fitbit_token
 from wearable_agent.config import get_settings
 from wearable_agent.models import DeviceType, MetricType, SensorReading
 
@@ -161,9 +161,9 @@ class FitbitCollector(BaseCollector):
     async def refresh_access_token(self) -> str:
         """Exchange the refresh token for a new access/refresh token pair.
 
-        Uses POST /oauth2/token with grant_type=refresh_token as per
-        Fitbit's OAuth 2.0 spec.  Requires client_id and client_secret
-        in HTTP Basic Auth.
+        Uses the shared :func:`refresh_fitbit_token` helper.  After the
+        HTTP exchange, updates instance state and re-creates the HTTP
+        client with the new bearer token.
 
         Returns the new access token.
         """
@@ -171,24 +171,12 @@ class FitbitCollector(BaseCollector):
             raise RuntimeError("No refresh_token available — cannot renew.")
 
         settings = get_settings()
-        basic = base64.b64encode(
-            f"{settings.fitbit_client_id}:{settings.fitbit_client_secret}".encode()
-        ).decode()
-
-        async with httpx.AsyncClient(timeout=settings.fitbit_request_timeout) as client:
-            resp = await client.post(
-                f"{settings.fitbit_api_base_url}/oauth2/token",
-                headers={
-                    "Authorization": f"Basic {basic}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": self._refresh_token,
-                },
-            )
-            resp.raise_for_status()
-            body = resp.json()
+        body = await refresh_fitbit_token(
+            refresh_token=self._refresh_token,
+            client_id=settings.fitbit_client_id,
+            client_secret=settings.fitbit_client_secret,
+            timeout=settings.fitbit_request_timeout,
+        )
 
         self._access_token = body["access_token"]
         self._refresh_token = body.get("refresh_token", self._refresh_token)
@@ -326,13 +314,84 @@ class FitbitCollector(BaseCollector):
         date_str: str,
     ) -> list[SensorReading]:
         """Dispatch to the appropriate metric-specific parser."""
-        parser = _PARSERS.get(metric)
-        if parser is None:
-            logger.warning("fitbit_collector.no_parser", metric=metric.value)
-            return []
-        return parser(self, participant_id, data, date_str)
+        # Check for a specialised parser first, then fall back to the
+        # declarative simple-parser table.
+        specialised = _SPECIALISED_PARSERS.get(metric)
+        if specialised is not None:
+            return specialised(self, participant_id, data, date_str)
 
-    # ── Heart Rate ────────────────────────────────────────────
+        spec = _SIMPLE_PARSERS.get(metric)
+        if spec is not None:
+            return self._parse_simple_timeseries(participant_id, data, date_str, spec)
+
+        logger.warning("fitbit_collector.no_parser", metric=metric.value)
+        return []
+
+    # ── Generic simple-timeseries parser ──────────────────────
+
+    @staticmethod
+    def _parse_simple_timeseries(
+        pid: str,
+        data: dict[str, Any],
+        date_str: str,
+        spec: "_SimpleParserSpec",
+    ) -> list[SensorReading]:
+        """Parse any Fitbit timeseries that follows a regular pattern.
+
+        The *spec* descriptor tells this method where to find entries,
+        how to extract the numeric value, and how to build the timestamp.
+        """
+        readings: list[SensorReading] = []
+        for entry in data.get(spec.data_key, []):
+            # --- Extract numeric value --------------------------------
+            if spec.value_path:
+                # Nested value object: walk the key path
+                obj = entry
+                for key in spec.value_path:
+                    obj = obj.get(key, {}) if isinstance(obj, dict) else None
+                    if obj is None:
+                        break
+                if obj is None:
+                    continue
+                val = float(obj)
+            elif spec.value_key:
+                # Body-log style: the value is a top-level key in the entry
+                raw = entry.get(spec.value_key)
+                if raw is None:
+                    continue
+                val = float(raw)
+            else:
+                # Flat timeseries: value is entry["value"]
+                val = float(entry["value"])
+
+            # --- Build timestamp --------------------------------------
+            if spec.ts_from_date_time_keys:
+                # Body-log style: separate "date" and "time" keys
+                ts_str = f"{entry['date']}T{entry.get('time', '00:00:00')}"
+                ts = datetime.fromisoformat(ts_str)
+            else:
+                dt = entry.get("dateTime", date_str)
+                ts = datetime.fromisoformat(dt)
+
+            # --- Extract optional metadata ----------------------------
+            meta: dict[str, Any] = {}
+            if spec.metadata_extractor is not None:
+                meta = spec.metadata_extractor(entry)
+
+            readings.append(
+                SensorReading(
+                    participant_id=pid,
+                    device_type=DeviceType.FITBIT,
+                    metric_type=spec.metric_type,
+                    value=val,
+                    unit=spec.unit,
+                    timestamp=ts,
+                    metadata=meta,
+                )
+            )
+        return readings
+
+    # ── Specialised parsers (unique logic) ────────────────────
 
     def _parse_heart_rate(
         self, pid: str, data: dict[str, Any], date_str: str
@@ -376,88 +435,6 @@ class FitbitCollector(BaseCollector):
                 )
         return readings
 
-    # ── Steps ─────────────────────────────────────────────────
-
-    def _parse_steps(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("activities-steps", []):
-            ts = datetime.fromisoformat(entry["dateTime"])
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.STEPS,
-                    value=float(entry["value"]),
-                    unit="steps",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Calories ──────────────────────────────────────────────
-
-    def _parse_calories(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("activities-calories", []):
-            ts = datetime.fromisoformat(entry["dateTime"])
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.CALORIES,
-                    value=float(entry["value"]),
-                    unit="kcal",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Distance ──────────────────────────────────────────────
-
-    def _parse_distance(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("activities-distance", []):
-            ts = datetime.fromisoformat(entry["dateTime"])
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.DISTANCE,
-                    value=float(entry["value"]),
-                    unit="km",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Floors ────────────────────────────────────────────────
-
-    def _parse_floors(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("activities-floors", []):
-            ts = datetime.fromisoformat(entry["dateTime"])
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.FLOORS,
-                    value=float(entry["value"]),
-                    unit="floors",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Sleep (v1.2) ──────────────────────────────────────────
-
     def _parse_sleep(
         self, pid: str, data: dict[str, Any], date_str: str
     ) -> list[SensorReading]:
@@ -496,8 +473,6 @@ class FitbitCollector(BaseCollector):
             )
         return readings
 
-    # ── SpO₂ ──────────────────────────────────────────────────
-
     def _parse_spo2(
         self, pid: str, data: dict[str, Any], date_str: str
     ) -> list[SensorReading]:
@@ -528,183 +503,6 @@ class FitbitCollector(BaseCollector):
             )
         return readings
 
-    # ── HRV ───────────────────────────────────────────────────
-
-    def _parse_hrv(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        """Parse HRV daily summary — RMSSD in ms."""
-        readings: list[SensorReading] = []
-        for entry in data.get("hrv", []):
-            rmssd = entry.get("value", {}).get("dailyRmssd")
-            if rmssd is None:
-                continue
-            dt = entry.get("dateTime", date_str)
-            ts = datetime.fromisoformat(dt)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.HRV,
-                    value=float(rmssd),
-                    unit="ms",
-                    timestamp=ts,
-                    metadata={
-                        "deep_rmssd": entry.get("value", {}).get("deepRmssd"),
-                    },
-                )
-            )
-        return readings
-
-    # ── Skin Temperature ──────────────────────────────────────
-
-    def _parse_skin_temperature(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("tempSkin", []):
-            val = entry.get("value", {}).get("nightlyRelative")
-            if val is None:
-                continue
-            dt = entry.get("dateTime", date_str)
-            ts = datetime.fromisoformat(dt)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.SKIN_TEMPERATURE,
-                    value=float(val),
-                    unit="°C",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Breathing Rate ────────────────────────────────────────
-
-    def _parse_breathing_rate(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("br", []):
-            val = entry.get("value", {}).get("breathingRate")
-            if val is None:
-                continue
-            dt = entry.get("dateTime", date_str)
-            ts = datetime.fromisoformat(dt)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.BREATHING_RATE,
-                    value=float(val),
-                    unit="brpm",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Body Weight ───────────────────────────────────────────
-
-    def _parse_body_weight(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for log in data.get("weight", []):
-            ts_str = f"{log['date']}T{log.get('time', '00:00:00')}"
-            ts = datetime.fromisoformat(ts_str)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.BODY_WEIGHT,
-                    value=float(log["weight"]),
-                    unit="kg",
-                    timestamp=ts,
-                    metadata={"bmi": log.get("bmi"), "source": log.get("source")},
-                )
-            )
-        return readings
-
-    # ── Body Fat ──────────────────────────────────────────────
-
-    def _parse_body_fat(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for log in data.get("fat", []):
-            ts_str = f"{log['date']}T{log.get('time', '00:00:00')}"
-            ts = datetime.fromisoformat(ts_str)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.BODY_FAT,
-                    value=float(log["fat"]),
-                    unit="%",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── VO₂ Max ───────────────────────────────────────────────
-
-    def _parse_vo2_max(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("cardioScore", []):
-            val = entry.get("value", {}).get("vo2Max")
-            if val is None:
-                continue
-            dt = entry.get("dateTime", date_str)
-            ts = datetime.fromisoformat(dt)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.VO2_MAX,
-                    value=float(val),
-                    unit="mL/kg/min",
-                    timestamp=ts,
-                )
-            )
-        return readings
-
-    # ── Active Zone Minutes ───────────────────────────────────
-
-    def _parse_active_zone_minutes(
-        self, pid: str, data: dict[str, Any], date_str: str
-    ) -> list[SensorReading]:
-        readings: list[SensorReading] = []
-        for entry in data.get("activities-active-zone-minutes", []):
-            val = entry.get("value", {})
-            total = val.get("activeZoneMinutes") if isinstance(val, dict) else val
-            if total is None:
-                continue
-            dt = entry.get("dateTime", date_str)
-            ts = datetime.fromisoformat(dt)
-            readings.append(
-                SensorReading(
-                    participant_id=pid,
-                    device_type=DeviceType.FITBIT,
-                    metric_type=MetricType.ACTIVE_ZONE_MINUTES,
-                    value=float(total),
-                    unit="minutes",
-                    timestamp=ts,
-                    metadata=(
-                        {
-                            "fat_burn_minutes": val.get("fatBurnActiveZoneMinutes"),
-                            "cardio_minutes": val.get("cardioActiveZoneMinutes"),
-                            "peak_minutes": val.get("peakActiveZoneMinutes"),
-                        }
-                        if isinstance(val, dict)
-                        else {}
-                    ),
-                )
-            )
-        return readings
-
     # ── Lifecycle ─────────────────────────────────────────────
 
     async def close(self) -> None:
@@ -713,24 +511,129 @@ class FitbitCollector(BaseCollector):
             self._client = None
 
 
-# ── Parser dispatch table (outside the class to avoid forward refs) ──
+# ── Simple parser descriptors ────────────────────────────────
+#
+# Each _SimpleParserSpec declares how to extract readings from a
+# standard Fitbit timeseries response, eliminating the need for
+# a separate method per metric.  Specialised parsers for heart_rate,
+# sleep, and spo2 remain as methods above.
 
-_PARSERS: dict[
+from dataclasses import dataclass, field
+from typing import Callable
+
+
+@dataclass(frozen=True, slots=True)
+class _SimpleParserSpec:
+    """Descriptor for a simple Fitbit timeseries parser."""
+
+    metric_type: MetricType
+    data_key: str
+    unit: str
+    # For nested value objects (e.g. {"value": {"dailyRmssd": 42}}),
+    # specify the key path as a tuple: ("value", "dailyRmssd").
+    value_path: tuple[str, ...] | None = None
+    # For body-log style where the value key differs from "value".
+    value_key: str | None = None
+    # Whether the timestamp is built from separate "date" + "time" keys
+    # (body logs) vs the usual "dateTime" key.
+    ts_from_date_time_keys: bool = False
+    # Optional callable to extract metadata from each entry dict.
+    metadata_extractor: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+
+
+def _azm_metadata(entry: dict[str, Any]) -> dict[str, Any]:
+    """Extract AZM zone breakdown from an active-zone-minutes entry."""
+    val = entry.get("value", {})
+    if not isinstance(val, dict):
+        return {}
+    return {
+        "fat_burn_minutes": val.get("fatBurnActiveZoneMinutes"),
+        "cardio_minutes": val.get("cardioActiveZoneMinutes"),
+        "peak_minutes": val.get("peakActiveZoneMinutes"),
+    }
+
+
+_SIMPLE_PARSERS: dict[MetricType, _SimpleParserSpec] = {
+    # ── Flat timeseries (dateTime + value) ─────────────────
+    MetricType.STEPS: _SimpleParserSpec(
+        metric_type=MetricType.STEPS,
+        data_key="activities-steps",
+        unit="steps",
+    ),
+    MetricType.CALORIES: _SimpleParserSpec(
+        metric_type=MetricType.CALORIES,
+        data_key="activities-calories",
+        unit="kcal",
+    ),
+    MetricType.DISTANCE: _SimpleParserSpec(
+        metric_type=MetricType.DISTANCE,
+        data_key="activities-distance",
+        unit="km",
+    ),
+    MetricType.FLOORS: _SimpleParserSpec(
+        metric_type=MetricType.FLOORS,
+        data_key="activities-floors",
+        unit="floors",
+    ),
+    # ── Nested-value timeseries ────────────────────────────
+    MetricType.HRV: _SimpleParserSpec(
+        metric_type=MetricType.HRV,
+        data_key="hrv",
+        unit="ms",
+        value_path=("value", "dailyRmssd"),
+    ),
+    MetricType.SKIN_TEMPERATURE: _SimpleParserSpec(
+        metric_type=MetricType.SKIN_TEMPERATURE,
+        data_key="tempSkin",
+        unit="°C",
+        value_path=("value", "nightlyRelative"),
+    ),
+    MetricType.BREATHING_RATE: _SimpleParserSpec(
+        metric_type=MetricType.BREATHING_RATE,
+        data_key="br",
+        unit="brpm",
+        value_path=("value", "breathingRate"),
+    ),
+    MetricType.VO2_MAX: _SimpleParserSpec(
+        metric_type=MetricType.VO2_MAX,
+        data_key="cardioScore",
+        unit="mL/kg/min",
+        value_path=("value", "vo2Max"),
+    ),
+    # ── Body logs (date + time keys) ──────────────────────
+    MetricType.BODY_WEIGHT: _SimpleParserSpec(
+        metric_type=MetricType.BODY_WEIGHT,
+        data_key="weight",
+        unit="kg",
+        value_key="weight",
+        ts_from_date_time_keys=True,
+        metadata_extractor=lambda e: {"bmi": e.get("bmi"), "source": e.get("source")},
+    ),
+    MetricType.BODY_FAT: _SimpleParserSpec(
+        metric_type=MetricType.BODY_FAT,
+        data_key="fat",
+        unit="%",
+        value_key="fat",
+        ts_from_date_time_keys=True,
+    ),
+    # ── Active Zone Minutes (nested with metadata) ────────
+    MetricType.ACTIVE_ZONE_MINUTES: _SimpleParserSpec(
+        metric_type=MetricType.ACTIVE_ZONE_MINUTES,
+        data_key="activities-active-zone-minutes",
+        unit="minutes",
+        value_path=("value", "activeZoneMinutes"),
+        metadata_extractor=_azm_metadata,
+    ),
+}
+
+
+# ── Specialised parser dispatch table ────────────────────────
+
+_SPECIALISED_PARSERS: dict[
     MetricType,
     Any,  # Callable[[FitbitCollector, str, dict, str], list[SensorReading]]
 ] = {
     MetricType.HEART_RATE: FitbitCollector._parse_heart_rate,
-    MetricType.STEPS: FitbitCollector._parse_steps,
-    MetricType.CALORIES: FitbitCollector._parse_calories,
-    MetricType.DISTANCE: FitbitCollector._parse_distance,
-    MetricType.FLOORS: FitbitCollector._parse_floors,
     MetricType.SLEEP: FitbitCollector._parse_sleep,
     MetricType.SPO2: FitbitCollector._parse_spo2,
-    MetricType.HRV: FitbitCollector._parse_hrv,
-    MetricType.SKIN_TEMPERATURE: FitbitCollector._parse_skin_temperature,
-    MetricType.BREATHING_RATE: FitbitCollector._parse_breathing_rate,
-    MetricType.BODY_WEIGHT: FitbitCollector._parse_body_weight,
-    MetricType.BODY_FAT: FitbitCollector._parse_body_fat,
-    MetricType.VO2_MAX: FitbitCollector._parse_vo2_max,
-    MetricType.ACTIVE_ZONE_MINUTES: FitbitCollector._parse_active_zone_minutes,
 }

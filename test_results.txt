@@ -1,0 +1,26 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.3, pytest-8.4.1, pluggy-1.6.0 -- C:\Users\marco\anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\marco\OneDrive - Radboud Universiteit\Desktop\FITBIT AGENT
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.3.45, asyncio-0.26.0, cov-6.3.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 43 items / 1 error
+
+=================================== ERRORS ====================================
+_____________________ ERROR collecting tests/test_api.py ______________________
+ImportError while importing test module 'C:\Users\marco\OneDrive - Radboud Universiteit\Desktop\FITBIT AGENT\tests\test_api.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\anaconda3\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_api.py:4: in <module>
+    from asgi_lifespan import LifespanManager
+E   ModuleNotFoundError: No module named 'asgi_lifespan'
+=========================== short test summary info ===========================
+ERROR tests/test_api.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+============================== 1 error in 0.90s ===============================
+
+---STDERR---

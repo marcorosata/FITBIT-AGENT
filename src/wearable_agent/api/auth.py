@@ -23,6 +23,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from wearable_agent.collectors.fitbit_oauth import refresh_fitbit_token
 from wearable_agent.config import get_settings
 from wearable_agent.storage.repository import ParticipantRepository, TokenRepository
 
@@ -175,28 +176,16 @@ async def refresh_tokens(participant_id: str):
         raise HTTPException(400, "No refresh token available.")
 
     settings = get_settings()
-    basic = base64.b64encode(
-        f"{settings.fitbit_client_id}:{settings.fitbit_client_secret}".encode()
-    ).decode()
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            _FITBIT_TOKEN_URL,
-            headers={
-                "Authorization": f"Basic {basic}",
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            data={
-                "grant_type": "refresh_token",
-                "refresh_token": token_row.refresh_token,
-            },
+    try:
+        body = await refresh_fitbit_token(
+            refresh_token=token_row.refresh_token,
+            client_id=settings.fitbit_client_id,
+            client_secret=settings.fitbit_client_secret,
         )
-
-    if resp.status_code != 200:
-        logger.error("oauth.refresh_failed", participant=participant_id, status=resp.status_code)
+    except httpx.HTTPStatusError:
+        logger.error("oauth.refresh_failed", participant=participant_id)
         raise HTTPException(502, "Token refresh failed.")
 
-    body = resp.json()
     expires_at = datetime.utcnow() + timedelta(seconds=body.get("expires_in", 28800))
 
     await token_repo.upsert(

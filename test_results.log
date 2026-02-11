@@ -1,0 +1,84 @@
+============================= test session starts =============================
+collecting ... collected 46 items
+
+tests/test_affect.py::TestActivityContext::test_rest_from_no_steps PASSED [  2%]
+tests/test_affect.py::TestActivityContext::test_rest_from_low_mets PASSED [  4%]
+tests/test_affect.py::TestActivityContext::test_low_movement PASSED      [  6%]
+tests/test_affect.py::TestActivityContext::test_moderate_movement PASSED [  8%]
+tests/test_affect.py::TestActivityContext::test_high_movement_from_mets PASSED [ 10%]
+tests/test_affect.py::TestActivityContext::test_sleep_override PASSED    [ 13%]
+tests/test_affect.py::TestTimeOfDayBand::test_morning PASSED             [ 15%]
+tests/test_affect.py::TestTimeOfDayBand::test_afternoon PASSED           [ 17%]
+tests/test_affect.py::TestTimeOfDayBand::test_evening PASSED             [ 19%]
+tests/test_affect.py::TestTimeOfDayBand::test_night PASSED               [ 21%]
+tests/test_affect.py::TestFeatureExtraction::test_empty_readings_produce_default_window PASSED [ 23%]
+tests/test_affect.py::TestBaselineUpdate::test_initial_baseline_sets_values PASSED [ 26%]
+tests/test_affect.py::TestBaselineUpdate::test_ewma_smoothing PASSED     [ 28%]
+tests/test_affect.py::TestBaselineUpdate::test_no_update_during_high_movement PASSED [ 30%]
+tests/test_affect.py::TestInference::test_relaxed_state PASSED           [ 32%]
+tests/test_affect.py::TestInference::test_stressed_state PASSED          [ 34%]
+tests/test_affect.py::TestInference::test_activity_degrades_confidence PASSED [ 36%]
+tests/test_affect.py::TestInference::test_no_data_produces_defaults PASSED [ 39%]
+tests/test_affect.py::TestInference::test_discrete_emotions_always_low_confidence PASSED [ 41%]
+tests/test_affect.py::TestInference::test_output_has_explanation PASSED  [ 43%]
+tests/test_affect.py::TestEMA::test_create_ema_label PASSED              [ 45%]
+tests/test_affect.py::TestEMA::test_invalid_emotion_tag_becomes_none PASSED [ 47%]
+tests/test_affect.py::TestEMA::test_ema_scheduler_no_trigger_below_threshold PASSED [ 50%]
+tests/test_affect.py::TestEMA::test_ema_scheduler_triggers_above_threshold PASSED [ 52%]
+tests/test_affect.py::TestEMA::test_ema_scheduler_no_trigger_during_exercise PASSED [ 54%]
+tests/test_affect.py::TestEMA::test_ema_scheduler_respects_daily_limit PASSED [ 56%]
+tests/test_affect.py::TestModels::test_affective_state_defaults PASSED   [ 58%]
+tests/test_affect.py::TestModels::test_inference_output_serialisation PASSED [ 60%]
+tests/test_affect.py::TestModels::test_quality_flags PASSED              [ 63%]
+tests/test_affect.py::TestModels::test_feature_window_defaults PASSED    [ 65%]
+tests/test_api.py::test_health PASSED                                    [ 67%]
+tests/test_api.py::test_ingest_and_query PASSED                          [ 69%]
+tests/test_api.py::test_rules_crud PASSED                                [ 71%]
+tests/test_collectors.py::TestModels::test_sensor_reading_defaults PASSED [ 73%]
+tests/test_collectors.py::TestModels::test_sensor_reading_with_metadata PASSED [ 76%]
+tests/test_collectors.py::TestCollectorRegistry::test_fitbit_available PASSED [ 78%]
+tests/test_collectors.py::TestCollectorRegistry::test_get_fitbit_collector PASSED [ 80%]
+tests/test_collectors.py::TestCollectorRegistry::test_unknown_device_raises PASSED [ 82%]
+tests/test_monitors.py::TestRuleEngine::test_no_alert_for_normal_reading PASSED [ 84%]
+tests/test_monitors.py::TestRuleEngine::test_warning_for_high_hr PASSED  [ 86%]
+tests/test_monitors.py::TestRuleEngine::test_warning_for_low_hr PASSED   [ 89%]
+tests/test_monitors.py::TestRuleEngine::test_add_and_remove_rule PASSED  [ 91%]
+tests/test_monitors.py::TestRuleEngine::test_batch_evaluation PASSED     [ 93%]
+tests/test_monitors.py::TestRuleEngine::test_invalid_condition_does_not_crash PASSED [ 95%]
+tests/test_pipeline.py::test_pipeline_publish_and_consume PASSED         [ 97%]
+tests/test_pipeline.py::test_pipeline_batch PASSED                       [100%]
+
+============================== warnings summary ===============================
+tests/test_affect.py::TestFeatureExtraction::test_empty_readings_produce_default_window
+  C:\Users\marco\OneDrive - Radboud Universiteit\Desktop\FITBIT AGENT\tests\test_affect.py:87: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_affect.py: 10 warnings
+tests/test_collectors.py: 2 warnings
+tests/test_monitors.py: 11 warnings
+tests/test_pipeline.py: 6 warnings
+  C:\Users\marco\anaconda3\Lib\site-packages\pydantic\main.py:253: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+
+tests/test_affect.py::TestBaselineUpdate::test_initial_baseline_sets_values
+tests/test_affect.py::TestBaselineUpdate::test_ewma_smoothing
+tests/test_affect.py::TestBaselineUpdate::test_no_update_during_high_movement
+  C:\Users\marco\OneDrive - Radboud Universiteit\Desktop\FITBIT AGENT\src\wearable_agent\affect\features.py:442: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    baseline.updated_at = datetime.utcnow()
+
+tests/test_api.py::test_ingest_and_query
+  C:\Users\marco\OneDrive - Radboud Universiteit\Desktop\FITBIT AGENT\src\wearable_agent\api\routes\data.py:29: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=req.timestamp or datetime.utcnow(),
+
+tests/test_api.py::test_rules_crud
+  C:\Users\marco\anaconda3\Lib\site-packages\pydantic\_internal\_generate_schema.py:776: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <Connection(Thread-2, started daemon 3788)>>, which will be dropped, as it cannot be safely terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    chain(
+
+tests/test_api.py::test_rules_crud
+  C:\Users\marco\anaconda3\Lib\asyncio\base_events.py:2005: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <Connection(Thread-4, started daemon 35192)>>, which will be dropped, as it cannot be safely terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_debug(self):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 46 passed, 36 warnings in 4.44s =======================
+
+---STDERR---

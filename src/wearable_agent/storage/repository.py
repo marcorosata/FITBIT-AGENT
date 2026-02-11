@@ -32,8 +32,8 @@ from wearable_agent.storage.database import (
 )
 
 
-class ReadingRepository:
-    """CRUD operations for :class:`SensorReading` objects."""
+class BaseRepository:
+    """Shared base with session management for all repositories."""
 
     def __init__(self, session: AsyncSession | None = None) -> None:
         self._external_session = session
@@ -42,6 +42,10 @@ class ReadingRepository:
         if self._external_session is not None:
             return self._external_session
         return get_session_factory()()
+
+
+class ReadingRepository(BaseRepository):
+    """CRUD operations for :class:`SensorReading` objects."""
 
     # ── Write ─────────────────────────────────────────────────
 
@@ -122,16 +126,8 @@ class ReadingRepository:
         return result.scalars().all()
 
 
-class AlertRepository:
+class AlertRepository(BaseRepository):
     """CRUD operations for :class:`Alert` objects."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def save(self, alert: Alert) -> None:
         session = await self._session()
@@ -166,16 +162,8 @@ class AlertRepository:
 # ── Affect inference repositories ─────────────────────────────
 
 
-class FeatureWindowRepository:
+class FeatureWindowRepository(BaseRepository):
     """CRUD for :class:`FeatureWindow` aggregations."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def save(self, window: FeatureWindow) -> None:
         session = await self._session()
@@ -225,16 +213,8 @@ class FeatureWindowRepository:
         return result.scalars().all()
 
 
-class InferenceOutputRepository:
+class InferenceOutputRepository(BaseRepository):
     """CRUD for :class:`InferenceOutput` results."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def save(self, output: InferenceOutput) -> None:
         session = await self._session()
@@ -291,16 +271,8 @@ class InferenceOutputRepository:
         return result.scalars().all()
 
 
-class EMARepository:
+class EMARepository(BaseRepository):
     """CRUD for :class:`EMALabel` ground-truth entries."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def save(self, label: EMALabel) -> None:
         session = await self._session()
@@ -365,16 +337,8 @@ class EMARepository:
         return len(result.scalars().all())
 
 
-class BaselineRepository:
+class BaselineRepository(BaseRepository):
     """CRUD for :class:`ParticipantBaseline` personalised baselines."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def get(self, participant_id: str) -> ParticipantBaselineRow | None:
         session = await self._session()
@@ -431,16 +395,8 @@ class BaselineRepository:
 # ── Participant & OAuth token repositories ────────────────────
 
 
-class ParticipantRepository:
+class ParticipantRepository(BaseRepository):
     """CRUD operations for :class:`Participant` objects."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def save(self, participant_id: str, display_name: str = "",
                    device_type: str = "fitbit", metadata_json: str = "{}") -> None:
@@ -502,16 +458,8 @@ class ParticipantRepository:
         return True
 
 
-class TokenRepository:
+class TokenRepository(BaseRepository):
     """CRUD operations for OAuth tokens."""
-
-    def __init__(self, session: AsyncSession | None = None) -> None:
-        self._external_session = session
-
-    async def _session(self) -> AsyncSession:
-        if self._external_session is not None:
-            return self._external_session
-        return get_session_factory()()
 
     async def upsert(
         self,
