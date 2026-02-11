@@ -30,9 +30,6 @@ data/
 *.db
 *.sqlite3
 
-# Large dataset directories (tracked via Git LFS if needed)
-scripts/rais_anonymized/
-
 # Jupyter
 .ipynb_checkpoints/
 
