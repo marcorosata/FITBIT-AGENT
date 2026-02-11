@@ -46,6 +46,7 @@ def add_cors(app: FastAPI) -> None:
 # ── API key authentication ────────────────────────────────────
 
 _PUBLIC_PATHS: set[str] = {
+    "/",
     "/health",
     "/docs",
     "/openapi.json",
@@ -54,11 +55,14 @@ _PUBLIC_PATHS: set[str] = {
     "/auth/fitbit/callback",
     "/admin",
     "/app",
+    "/api/stats",
+    "/system/info",
 }
 
 _PUBLIC_PREFIXES: tuple[str, ...] = (
     "/ws/",
     "/static/",
+    "/admin/api/",
 )
 
 

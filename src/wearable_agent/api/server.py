@@ -586,6 +586,12 @@ async def connection_info():
 
 # ── UI routes ─────────────────────────────────────────────────
 
+@app.get("/", response_class=HTMLResponse, tags=["ui"])
+async def root_ui():
+    """Serve the admin dashboard at the root URL."""
+    return FileResponse(_UI_DIR / "admin" / "index.html")
+
+
 @app.get("/admin", response_class=HTMLResponse, tags=["ui"])
 async def admin_ui():
     """Serve the admin dashboard."""
