@@ -11,6 +11,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# On Railway (ephemeral FS), store DB in /tmp; locally use the project data/ dir.
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    _DB_DIR = Path("/tmp/data")
+else:
+    _DB_DIR = _PROJECT_ROOT / "data"
+_DB_DIR.mkdir(parents=True, exist_ok=True)
+_DEFAULT_DB_URL = f"sqlite+aiosqlite:///{_DB_DIR / 'wearable_agent.db'}"
+
 
 class Settings(BaseSettings):
     """All runtime configuration for the wearable-agent framework.
@@ -44,7 +52,7 @@ class Settings(BaseSettings):
     fitbit_api_base_url: str = "https://api.fitbit.com"
 
     # ── Database ──────────────────────────────────────────────
-    database_url: str = f"sqlite+aiosqlite:///{_PROJECT_ROOT / 'data' / 'wearable_agent.db'}"
+    database_url: str = _DEFAULT_DB_URL
 
     # ── API server ────────────────────────────────────────────
     api_host: str = "0.0.0.0"
