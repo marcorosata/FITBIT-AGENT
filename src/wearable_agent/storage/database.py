@@ -235,6 +235,17 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Create all tables (idempotent). Use Alembic for migrations in production."""
+    # Ensure the parent directory of the SQLite file exists at runtime
+    # (covers cases where the dir was cleaned between import and first use).
+    settings = get_settings()
+    url = settings.database_url
+    if url.startswith("sqlite"):
+        from pathlib import Path
+
+        # URL format: sqlite+aiosqlite:///path/to/db
+        db_path = Path(url.split("///", 1)[-1])
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
     engine = _get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

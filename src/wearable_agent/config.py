@@ -11,12 +11,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# On Railway (ephemeral FS), store DB in /tmp; locally use the project data/ dir.
-if os.getenv("RAILWAY_ENVIRONMENT"):
-    _DB_DIR = Path("/tmp/data")
-else:
-    _DB_DIR = _PROJECT_ROOT / "data"
-_DB_DIR.mkdir(parents=True, exist_ok=True)
+
+def _is_railway() -> bool:
+    """Detect Railway deployment via any of its well-known env vars."""
+    return any(
+        os.getenv(v)
+        for v in ("RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
+    )
+
+
+def _resolve_db_dir() -> Path:
+    """Return (and create) the directory that holds the SQLite file."""
+    if _is_railway():
+        d = Path("/tmp/data")
+    else:
+        d = _PROJECT_ROOT / "data"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+_DB_DIR = _resolve_db_dir()
 _DEFAULT_DB_URL = f"sqlite+aiosqlite:///{_DB_DIR / 'wearable_agent.db'}"
 
 
