@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     notification_email_from: str = ""
 
+    # ── CORS ──────────────────────────────────────────────────
+    cors_origins: str = "*"  # comma-separated origins, or "*" for all
+
+    # ── Scheduler ─────────────────────────────────────────────
+    scheduler_enabled: bool = True
+    scheduler_collect_interval_minutes: int = 5
+    scheduler_max_concurrent_syncs: int = 3
+
     # ── Agent behaviour ───────────────────────────────────────
     agent_check_interval_seconds: int = 300
     agent_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

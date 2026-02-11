@@ -65,6 +65,38 @@ class StudyRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class ParticipantRow(Base):
+    """Persisted participant record."""
+
+    __tablename__ = "participants"
+
+    participant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(256), default="")
+    device_type: Mapped[str] = mapped_column(String(32), default="fitbit")
+    active: Mapped[int] = mapped_column(Integer, default=1)
+    enrolled_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_sync: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class OAuthTokenRow(Base):
+    """Persisted OAuth 2.0 token for a participant's wearable account."""
+
+    __tablename__ = "oauth_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    participant_id: Mapped[str] = mapped_column(String(128), index=True)
+    provider: Mapped[str] = mapped_column(String(32), default="fitbit")
+    access_token: Mapped[str] = mapped_column(Text)
+    refresh_token: Mapped[str] = mapped_column(Text, default="")
+    token_type: Mapped[str] = mapped_column(String(32), default="Bearer")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    scopes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 # ── Affect inference tables ───────────────────────────────────
 
 

@@ -94,5 +94,29 @@ class MonitoringRule(BaseModel):
     message_template: str = "Metric {metric_type} value {value} breached rule."
 
 
+class Participant(BaseModel):
+    """A study participant with device configuration."""
+    participant_id: str
+    display_name: str = ""
+    device_type: DeviceType = DeviceType.FITBIT
+    active: bool = True
+    enrolled_at: datetime = Field(default_factory=datetime.utcnow)
+    last_sync: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OAuthToken(BaseModel):
+    """OAuth 2.0 token pair for a participant's device account."""
+    participant_id: str
+    provider: str = "fitbit"
+    access_token: str
+    refresh_token: str = ""
+    token_type: str = "Bearer"
+    expires_at: datetime | None = None
+    scopes: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 # Resolve forward reference
 StudyConfig.model_rebuild()

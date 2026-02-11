@@ -24,7 +24,9 @@ from wearable_agent.storage.database import (
     EMALabelRow,
     FeatureWindowRow,
     InferenceOutputRow,
+    OAuthTokenRow,
     ParticipantBaselineRow,
+    ParticipantRow,
     SensorReadingRow,
     get_session_factory,
 )
@@ -424,3 +426,142 @@ class BaselineRepository:
             existing.ewma_alpha = baseline.ewma_alpha
             existing.observation_count = baseline.observation_count
         await session.commit()
+
+
+# ── Participant & OAuth token repositories ────────────────────
+
+
+class ParticipantRepository:
+    """CRUD operations for :class:`Participant` objects."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def save(self, participant_id: str, display_name: str = "",
+                   device_type: str = "fitbit", metadata_json: str = "{}") -> None:
+        session = await self._session()
+        existing = await self.get(participant_id)
+        if existing is not None:
+            existing.display_name = display_name
+            existing.device_type = device_type
+            existing.metadata_json = metadata_json
+        else:
+            row = ParticipantRow(
+                participant_id=participant_id,
+                display_name=display_name,
+                device_type=device_type,
+                metadata_json=metadata_json,
+            )
+            session.add(row)
+        await session.commit()
+
+    async def get(self, participant_id: str) -> ParticipantRow | None:
+        session = await self._session()
+        stmt = select(ParticipantRow).where(
+            ParticipantRow.participant_id == participant_id
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_all(self, active_only: bool = True) -> Sequence[ParticipantRow]:
+        session = await self._session()
+        stmt = select(ParticipantRow).order_by(ParticipantRow.enrolled_at.desc())
+        if active_only:
+            stmt = stmt.where(ParticipantRow.active == 1)
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def update_last_sync(self, participant_id: str, sync_time: datetime) -> None:
+        session = await self._session()
+        row = await self.get(participant_id)
+        if row:
+            row.last_sync = sync_time
+            await session.commit()
+
+    async def set_active(self, participant_id: str, active: bool) -> bool:
+        session = await self._session()
+        row = await self.get(participant_id)
+        if row is None:
+            return False
+        row.active = 1 if active else 0
+        await session.commit()
+        return True
+
+    async def delete(self, participant_id: str) -> bool:
+        session = await self._session()
+        row = await self.get(participant_id)
+        if row is None:
+            return False
+        await session.delete(row)
+        await session.commit()
+        return True
+
+
+class TokenRepository:
+    """CRUD operations for OAuth tokens."""
+
+    def __init__(self, session: AsyncSession | None = None) -> None:
+        self._external_session = session
+
+    async def _session(self) -> AsyncSession:
+        if self._external_session is not None:
+            return self._external_session
+        return get_session_factory()()
+
+    async def upsert(
+        self,
+        participant_id: str,
+        access_token: str,
+        refresh_token: str = "",
+        provider: str = "fitbit",
+        expires_at: datetime | None = None,
+        scopes: str = "",
+    ) -> None:
+        session = await self._session()
+        existing = await self.get(participant_id, provider)
+        if existing is not None:
+            existing.access_token = access_token
+            existing.refresh_token = refresh_token
+            existing.expires_at = expires_at
+            existing.scopes = scopes
+            existing.updated_at = datetime.utcnow()
+        else:
+            row = OAuthTokenRow(
+                participant_id=participant_id,
+                provider=provider,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_at=expires_at,
+                scopes=scopes,
+            )
+            session.add(row)
+        await session.commit()
+
+    async def get(self, participant_id: str, provider: str = "fitbit") -> OAuthTokenRow | None:
+        session = await self._session()
+        stmt = select(OAuthTokenRow).where(
+            OAuthTokenRow.participant_id == participant_id,
+            OAuthTokenRow.provider == provider,
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete(self, participant_id: str, provider: str = "fitbit") -> bool:
+        session = await self._session()
+        row = await self.get(participant_id, provider)
+        if row is None:
+            return False
+        await session.delete(row)
+        await session.commit()
+        return True
+
+    async def list_all(self, provider: str = "fitbit") -> Sequence[OAuthTokenRow]:
+        session = await self._session()
+        stmt = select(OAuthTokenRow).where(OAuthTokenRow.provider == provider)
+        result = await session.execute(stmt)
+        return result.scalars().all()

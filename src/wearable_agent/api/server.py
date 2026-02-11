@@ -1,4 +1,17 @@
-"""FastAPI application — REST endpoints and WebSocket for real-time data."""
+"""FastAPI application — REST endpoints, WebSocket, OAuth, and background services.
+
+This module wires together all infrastructure:
+- CORS + API key auth middleware
+- Fitbit OAuth 2.0 flow
+- Participant management CRUD
+- Scheduled data collection
+- Real-time WebSocket broadcasting
+- Sensor data ingestion & querying
+- LLM agent analysis
+- Affect inference pipeline
+- EMA self-report capture
+- Monitoring rules CRUD
+"""
 
 from __future__ import annotations
 
@@ -9,14 +22,17 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from wearable_agent.agent.core import WearableAgent
+from wearable_agent.api.auth import router as auth_router
+from wearable_agent.api.middleware import setup_middleware
+from wearable_agent.api.routes.participants import router as participants_router
+from wearable_agent.api.routes.sync import router as sync_router, set_scheduler
+from wearable_agent.api.websocket import ws_manager
 from wearable_agent.config import get_settings
 from wearable_agent.models import (
     Alert,
@@ -29,10 +45,10 @@ from wearable_agent.models import (
 from wearable_agent.monitors.heart_rate import create_heart_rate_engine
 from wearable_agent.monitors.rules import RuleEngine
 from wearable_agent.notifications.handlers import create_dispatcher
+from wearable_agent.scheduler.service import SchedulerService
 from wearable_agent.storage.database import (
     AlertRow,
     SensorReadingRow,
-    get_session,
     get_session_factory,
     init_db,
 )
@@ -60,13 +76,14 @@ _rule_engine: RuleEngine | None = None
 _pipeline_task: asyncio.Task | None = None
 _affect_pipeline: AffectPipeline | None = None
 _ema_scheduler: EMAScheduler | None = None
+_scheduler_service: SchedulerService | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle hooks."""
     global _pipeline, _agent, _rule_engine, _pipeline_task
-    global _affect_pipeline, _ema_scheduler
+    global _affect_pipeline, _ema_scheduler, _scheduler_service
 
     settings = get_settings()
 
@@ -108,21 +125,69 @@ async def lifespan(app: FastAPI):
         affect_pipeline=_affect_pipeline,
     )
 
-    # 7. Streaming pipeline
+    # 7. Streaming pipeline with WebSocket broadcasting
     _pipeline = StreamPipeline()
 
     async def _on_reading(reading: SensorReading) -> None:
-        """Pipeline consumer: persist + evaluate."""
+        """Pipeline consumer: persist, evaluate rules, and broadcast."""
         await reading_repo.save(reading)
-        await _agent.process_reading(reading)  # type: ignore[union-attr]
+        alerts = await _agent.process_reading(reading)  # type: ignore[union-attr]
+
+        # Track inbound reading for admin stats
+        reading_payload = {
+            "id": reading.id,
+            "participant_id": reading.participant_id,
+            "metric_type": reading.metric_type.value,
+            "value": reading.value,
+            "unit": reading.unit,
+            "timestamp": reading.timestamp.isoformat(),
+        }
+        ws_manager.record_inbound(reading_payload)
+
+        # Broadcast reading to WebSocket clients
+        await ws_manager.broadcast_reading({
+            "id": reading.id,
+            "participant_id": reading.participant_id,
+            "metric_type": reading.metric_type.value,
+            "value": reading.value,
+            "unit": reading.unit,
+            "timestamp": reading.timestamp.isoformat(),
+        })
+
+        # Broadcast any fired alerts
+        for alert in alerts:
+            await ws_manager.broadcast_alert({
+                "id": alert.id,
+                "participant_id": alert.participant_id,
+                "severity": alert.severity.value,
+                "metric_type": alert.metric_type.value,
+                "message": alert.message,
+                "value": alert.value,
+                "timestamp": alert.timestamp.isoformat(),
+            })
 
     _pipeline.add_consumer(_on_reading)
     _pipeline_task = asyncio.create_task(_pipeline.start())
+
+    # 8. Scheduled data collection
+    if settings.scheduler_enabled:
+        _scheduler_service = SchedulerService(
+            pipeline=_pipeline,
+            affect_pipeline=_affect_pipeline,
+        )
+        set_scheduler(_scheduler_service, _pipeline)
+        await _scheduler_service.start()
+        logger.info("server.scheduler_started")
+    else:
+        set_scheduler(None, _pipeline)
+
     logger.info("server.started", port=settings.api_port)
 
     yield  # ← application runs
 
     # Shutdown
+    if _scheduler_service:
+        await _scheduler_service.stop()
     if _pipeline:
         await _pipeline.stop()
     if _pipeline_task:
@@ -136,6 +201,14 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# ── Middleware ────────────────────────────────────────────────
+setup_middleware(app)
+
+# ── Routers ───────────────────────────────────────────────────
+app.include_router(auth_router)
+app.include_router(participants_router)
+app.include_router(sync_router)
 
 
 # ── Request / response models ────────────────────────────────
@@ -163,14 +236,42 @@ class RuleRequest(BaseModel):
 
 # ── Health ────────────────────────────────────────────────────
 
-@app.get("/health")
+@app.get("/health", tags=["system"])
 async def health():
     return {"status": "ok", "pipeline_pending": _pipeline.pending if _pipeline else 0}
 
 
+@app.get("/system/info", tags=["system"])
+async def system_info():
+    """Detailed system status for operational monitoring."""
+    settings = get_settings()
+    return {
+        "version": "0.1.0",
+        "pipeline": {
+            "running": _pipeline is not None,
+            "pending": _pipeline.pending if _pipeline else 0,
+        },
+        "agent": {"ready": _agent is not None},
+        "rule_engine": {
+            "ready": _rule_engine is not None,
+            "rule_count": len(_rule_engine.list_rules()) if _rule_engine else 0,
+        },
+        "affect_pipeline": {"ready": _affect_pipeline is not None},
+        "scheduler": {
+            "enabled": settings.scheduler_enabled,
+            "running": _scheduler_service is not None and _scheduler_service._running
+            if _scheduler_service else False,
+            "interval_minutes": settings.scheduler_collect_interval_minutes,
+        },
+        "websocket": {
+            "connected_clients": ws_manager.active_count,
+        },
+    }
+
+
 # ── Data ingestion ────────────────────────────────────────────
 
-@app.post("/ingest", status_code=201)
+@app.post("/ingest", status_code=201, tags=["data"])
 async def ingest(req: IngestRequest):
     """Ingest a single sensor reading into the pipeline."""
     if _pipeline is None:
@@ -188,7 +289,7 @@ async def ingest(req: IngestRequest):
     return {"id": reading.id, "queued": True}
 
 
-@app.post("/ingest/batch", status_code=201)
+@app.post("/ingest/batch", status_code=201, tags=["data"])
 async def ingest_batch(readings: list[IngestRequest]):
     """Ingest multiple readings at once."""
     if _pipeline is None:
@@ -211,7 +312,7 @@ async def ingest_batch(readings: list[IngestRequest]):
 
 # ── Query ─────────────────────────────────────────────────────
 
-@app.get("/readings/{participant_id}")
+@app.get("/readings/{participant_id}", tags=["data"])
 async def get_readings(
     participant_id: str,
     metric: MetricType = Query(...),
@@ -231,7 +332,7 @@ async def get_readings(
     ]
 
 
-@app.get("/alerts/{participant_id}")
+@app.get("/alerts/{participant_id}", tags=["data"])
 async def get_alerts(participant_id: str, limit: int = Query(50, ge=1, le=500)):
     repo = AlertRepository()
     rows = await repo.get_by_participant(participant_id, limit=limit)
@@ -250,7 +351,7 @@ async def get_alerts(participant_id: str, limit: int = Query(50, ge=1, le=500)):
 
 # ── Agent analysis ────────────────────────────────────────────
 
-@app.post("/analyse")
+@app.post("/analyse", tags=["agent"])
 async def analyse(req: AnalyseRequest):
     """Send a free-form question to the LLM agent."""
     if _agent is None:
@@ -259,7 +360,7 @@ async def analyse(req: AnalyseRequest):
     return {"response": result}
 
 
-@app.get("/evaluate/{participant_id}")
+@app.get("/evaluate/{participant_id}", tags=["agent"])
 async def evaluate_participant(
     participant_id: str,
     metric: str = Query("heart_rate"),
@@ -274,14 +375,14 @@ async def evaluate_participant(
 
 # ── Monitoring rules ──────────────────────────────────────────
 
-@app.get("/rules")
+@app.get("/rules", tags=["rules"])
 async def list_rules():
     if _rule_engine is None:
         return []
     return [r.model_dump() for r in _rule_engine.list_rules()]
 
 
-@app.post("/rules", status_code=201)
+@app.post("/rules", status_code=201, tags=["rules"])
 async def add_rule(req: RuleRequest):
     if _rule_engine is None:
         raise HTTPException(503, "Rule engine not ready.")
@@ -295,7 +396,7 @@ async def add_rule(req: RuleRequest):
     return {"rule_id": rule.rule_id}
 
 
-@app.delete("/rules/{rule_id}")
+@app.delete("/rules/{rule_id}", tags=["rules"])
 async def delete_rule(rule_id: str):
     if _rule_engine is None:
         raise HTTPException(503, "Rule engine not ready.")
@@ -325,7 +426,7 @@ class EMARequest(BaseModel):
     inference_output_id: str | None = None
 
 
-@app.post("/affect/{participant_id}")
+@app.post("/affect/{participant_id}", tags=["affect"])
 async def run_affect_inference(participant_id: str, req: AffectRequest | None = None):
     """Run affective state inference for a participant.
 
@@ -340,7 +441,7 @@ async def run_affect_inference(participant_id: str, req: AffectRequest | None = 
     return output.model_dump(mode="json")
 
 
-@app.get("/affect/{participant_id}")
+@app.get("/affect/{participant_id}", tags=["affect"])
 async def get_affect_state(participant_id: str):
     """Get the latest affective state for a participant."""
     if _affect_pipeline is None:
@@ -352,7 +453,7 @@ async def get_affect_state(participant_id: str):
     return output.model_dump(mode="json")
 
 
-@app.get("/affect/{participant_id}/history")
+@app.get("/affect/{participant_id}/history", tags=["affect"])
 async def get_affect_history(
     participant_id: str,
     hours: int = Query(24, ge=1, le=720),
@@ -367,7 +468,7 @@ async def get_affect_history(
     return {"participant_id": participant_id, "count": len(history), "history": history}
 
 
-@app.post("/ema", status_code=201)
+@app.post("/ema", status_code=201, tags=["affect"])
 async def submit_ema(req: EMARequest):
     """Submit an EMA (Ecological Momentary Assessment) self-report.
 
@@ -390,7 +491,7 @@ async def submit_ema(req: EMARequest):
     return {"id": label.id, "saved": True}
 
 
-@app.get("/ema/{participant_id}")
+@app.get("/ema/{participant_id}", tags=["affect"])
 async def get_ema_labels(
     participant_id: str,
     limit: int = Query(50, ge=1, le=500),
@@ -415,7 +516,7 @@ async def get_ema_labels(
 
 # ── Aggregate stats (for admin dashboard) ─────────────────────
 
-@app.get("/api/stats")
+@app.get("/api/stats", tags=["system"])
 async def get_stats():
     """Return aggregate statistics for the admin dashboard."""
     factory = get_session_factory()
@@ -459,15 +560,39 @@ async def get_stats():
     }
 
 
+# ── Stream statistics (for admin dashboard) ──────────────────
+
+@app.get("/admin/api/stream-stats", tags=["admin"])
+async def stream_stats():
+    """Return real-time streaming statistics for the admin UI."""
+    return {
+        "connections": {
+            "total": ws_manager.active_count,
+            "channels": ws_manager.channel_breakdown(),
+        },
+        "throughput": ws_manager.stats.snapshot(),
+        "recent_messages": ws_manager.get_recent_messages(limit=100),
+    }
+
+
+@app.get("/admin/api/connections", tags=["admin"])
+async def connection_info():
+    """Return connected client info per channel."""
+    return {
+        "total_clients": ws_manager.active_count,
+        "channels": ws_manager.channel_breakdown(),
+    }
+
+
 # ── UI routes ─────────────────────────────────────────────────
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse, tags=["ui"])
 async def admin_ui():
     """Serve the admin dashboard."""
     return FileResponse(_UI_DIR / "admin" / "index.html")
 
 
-@app.get("/app", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse, tags=["ui"])
 async def user_ui():
     """Serve the participant app."""
     return FileResponse(_UI_DIR / "user" / "index.html")
@@ -475,19 +600,34 @@ async def user_ui():
 
 # ── WebSocket (real-time data feed) ──────────────────────────
 
-_ws_clients: list[WebSocket] = []
-
-
 @app.websocket("/ws/stream")
-async def ws_stream(ws: WebSocket):
-    """Real-time WebSocket feed of incoming sensor readings."""
-    await ws.accept()
-    _ws_clients.append(ws)
-    logger.info("ws.client_connected", total=len(_ws_clients))
+async def ws_stream(
+    ws: WebSocket,
+    channel: str = Query("all"),
+):
+    """Real-time WebSocket feed with channel subscription.
+
+    Connect to ``/ws/stream?channel=readings`` to receive only
+    sensor data, ``channel=alerts`` for alerts, ``channel=affect``
+    for affect inferences, or ``channel=all`` (default) for everything.
+    """
+    await ws_manager.connect(ws, channel)
+    logger.info("ws.client_connected", channel=channel, total=ws_manager.active_count)
     try:
         while True:
-            # Keep connection alive; clients are read-only consumers.
-            await ws.receive_text()
+            # Keep alive; clients are read-only consumers.
+            data = await ws.receive_text()
+            # Allow clients to switch channels via JSON message.
+            if data.startswith("{"):
+                import json as _json
+
+                try:
+                    msg = _json.loads(data)
+                    if "channel" in msg:
+                        await ws_manager.disconnect(ws)
+                        await ws_manager.connect(ws, msg["channel"])
+                except _json.JSONDecodeError:
+                    pass
     except WebSocketDisconnect:
-        _ws_clients.remove(ws)
-        logger.info("ws.client_disconnected", total=len(_ws_clients))
+        await ws_manager.disconnect(ws)
+        logger.info("ws.client_disconnected", total=ws_manager.active_count)
