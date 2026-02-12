@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+scripts/rais_anonymized/mongo_rais_anonymized/fitbit.bson
 *.py[cod]
 *$py.class
 
