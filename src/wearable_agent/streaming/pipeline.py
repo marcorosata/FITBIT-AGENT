@@ -45,8 +45,14 @@ class StreamPipeline:
 
     async def start(self) -> None:
         """Start the consumer loop (run as a background task)."""
+        import time
+
         self._running = True
+        self._processed_total = 0
         logger.info("stream_pipeline.started", consumers=len(self._consumers))
+
+        last_stats_time = time.monotonic()
+
         while self._running:
             try:
                 reading = await asyncio.wait_for(self._queue.get(), timeout=1.0)
@@ -62,7 +68,19 @@ class StreamPipeline:
                         consumer=consumer.__qualname__,
                         error=str(exc),
                     )
+
+            self._processed_total += 1
             self._queue.task_done()
+
+            # Periodic stats every 60 seconds
+            now = time.monotonic()
+            if now - last_stats_time >= 60:
+                logger.info(
+                    "stream_pipeline.stats",
+                    processed_total=self._processed_total,
+                    queue_pending=self._queue.qsize(),
+                )
+                last_stats_time = now
 
     async def stop(self) -> None:
         """Gracefully stop the consumer loop."""

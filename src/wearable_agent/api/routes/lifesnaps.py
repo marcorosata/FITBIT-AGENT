@@ -144,18 +144,53 @@ async def start_streaming(
 
 async def _run_stream(participant_id: str, metrics: list[MetricType], speed: float):
     """Background task to push readings to the pipeline."""
+    import time
+
     collector = LifeSnapsCollector()
-    logger.info("lifesnaps.stream_started", participant=participant_id)
-    
+    logger.info(
+        "lifesnaps.stream_started",
+        participant=participant_id,
+        speed=speed,
+        metrics=[m.value for m in metrics],
+        data_path=str(collector.data_path),
+    )
+
     count = 0
+    last_log_time = time.monotonic()
+    metric_counts: dict[str, int] = {}
+
     try:
         async for reading in collector.stream(participant_id, metrics, speed=speed):
             if _pipeline:
                 await _pipeline.publish_batch([reading])
                 count += 1
-                if count % 100 == 0:
-                     logger.debug("lifesnaps.stream_progress", count=count)
+                metric_counts[reading.metric_type.value] = (
+                    metric_counts.get(reading.metric_type.value, 0) + 1
+                )
+
+                # Log progress every 30 seconds (wall-clock)
+                now = time.monotonic()
+                if now - last_log_time >= 30:
+                    logger.info(
+                        "lifesnaps.stream_progress",
+                        participant=participant_id,
+                        total=count,
+                        per_metric=metric_counts,
+                        pipeline_pending=_pipeline.pending,
+                    )
+                    last_log_time = now
     except Exception as e:
-        logger.error("lifesnaps.stream_error", error=str(e))
+        logger.error(
+            "lifesnaps.stream_error",
+            participant=participant_id,
+            error=str(e),
+            readings_so_far=count,
+            exc_info=True,
+        )
     finally:
-        logger.info("lifesnaps.stream_finished", participant=participant_id, total_readings=count)
+        logger.info(
+            "lifesnaps.stream_finished",
+            participant=participant_id,
+            total_readings=count,
+            per_metric=metric_counts,
+        )

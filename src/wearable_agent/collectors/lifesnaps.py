@@ -95,7 +95,13 @@ class LifeSnapsCollector(BaseCollector):
                 "Please run scripts/download_lifesnaps.py or unzip the archive."
             )
 
-        logger.info("Loading LifeSnaps dataset...")
+        logger.info(
+            "lifesnaps.loading_csv",
+            daily=str(self.daily_file),
+            daily_size_mb=round(self.daily_file.stat().st_size / 1024 / 1024, 1),
+            hourly=str(self.hourly_file),
+            hourly_size_mb=round(self.hourly_file.stat().st_size / 1024 / 1024, 1),
+        )
         # Load daily data
         self._daily_df = pd.read_csv(self.daily_file)
         self._daily_df['date'] = pd.to_datetime(self._daily_df['date'])
@@ -118,7 +124,13 @@ class LifeSnapsCollector(BaseCollector):
 
         # Extract unique participants
         self._participants = sorted(self._daily_df['id'].unique().astype(str).tolist())
-        logger.info(f"Loaded LifeSnaps data for {len(self._participants)} participants")
+        logger.info(
+            "lifesnaps.csv_loaded",
+            participants=len(self._participants),
+            daily_rows=len(self._daily_df),
+            hourly_rows=len(self._hourly_df),
+            daily_columns=list(self._daily_df.columns),
+        )
 
     async def authenticate(self, **credentials: str) -> None:
         """No generic authentication needed for local files."""
@@ -280,7 +292,12 @@ class LifeSnapsCollector(BaseCollector):
         per_participant = mongo_dir / f"participant_{participant_id}.bson"
         if per_participant.exists() and per_participant.stat().st_size > 200:
             bson_path = per_participant
-            logger.info(f"Using per-participant BSON: {bson_path}")
+            logger.info(
+                "lifesnaps.bson_source",
+                source="per-participant",
+                path=str(bson_path),
+                size_mb=round(bson_path.stat().st_size / 1024 / 1024, 1),
+            )
         else:
             # 2. Fall back to full fitbit.bson
             bson_path = mongo_dir / "fitbit.bson"
@@ -290,7 +307,23 @@ class LifeSnapsCollector(BaseCollector):
                     logger.info("Reassembling fitbit.bson from LFS parts...")
                     self._reassemble_bson(parts_dir, bson_path)
                 else:
-                    logger.warning(f"No BSON data found for {participant_id} in {mongo_dir}")
+                    logger.warning(
+                        "lifesnaps.bson_not_found",
+                        participant=participant_id,
+                        mongo_dir=str(mongo_dir),
+                        files=(
+                            [f.name for f in mongo_dir.iterdir()]
+                            if mongo_dir.exists()
+                            else []
+                        ),
+                    )
+            else:
+                logger.info(
+                    "lifesnaps.bson_source",
+                    source="full-file",
+                    path=str(bson_path),
+                    size_mb=round(bson_path.stat().st_size / 1024 / 1024, 1),
+                )
         streamer = BSONStreamer(bson_path)
         
         # We need to find the first timestamp to synchronize
@@ -360,12 +393,28 @@ class LifeSnapsCollector(BaseCollector):
 
         async def _produce_csv() -> None:
             try:
+                logger.info(
+                    "lifesnaps.csv_producer_start",
+                    participant=participant_id,
+                    metrics=[m.value for m in csv_metrics],
+                )
                 readings = await self.fetch(participant_id, csv_metrics)
                 if not readings:
+                    logger.warning(
+                        "lifesnaps.csv_producer_empty",
+                        participant=participant_id,
+                    )
                     return
                 readings.sort(key=lambda r: r.timestamp)
+                logger.info(
+                    "lifesnaps.csv_producer_loaded",
+                    participant=participant_id,
+                    total_readings=len(readings),
+                    date_range=f"{readings[0].timestamp} → {readings[-1].timestamp}",
+                )
                 anchor = readings[0].timestamp
                 wall_start = datetime.now()
+                emitted = 0
                 for r in readings:
                     offset = r.timestamp - anchor
                     target = wall_start + (offset / speed)
@@ -374,17 +423,46 @@ class LifeSnapsCollector(BaseCollector):
                         await asyncio.sleep(delay)
                     r.timestamp = datetime.now()
                     await queue.put(r)
+                    emitted += 1
+                logger.info(
+                    "lifesnaps.csv_producer_done",
+                    participant=participant_id,
+                    emitted=emitted,
+                )
             except Exception as exc:
-                logger.error("csv_producer_failed", error=str(exc))
+                logger.error("csv_producer_failed", error=str(exc), exc_info=True)
             finally:
                 await queue.put(None)
 
         async def _produce_bson() -> None:
+            bson_count = 0
             try:
+                logger.info(
+                    "lifesnaps.bson_producer_start",
+                    participant=participant_id,
+                    metrics=[m.value for m in bson_metrics],
+                )
                 async for r in self._stream_bson(participant_id, bson_metrics, speed):
                     await queue.put(r)
+                    bson_count += 1
+                    if bson_count % 5000 == 0:
+                        logger.info(
+                            "lifesnaps.bson_producer_progress",
+                            participant=participant_id,
+                            emitted=bson_count,
+                        )
+                logger.info(
+                    "lifesnaps.bson_producer_done",
+                    participant=participant_id,
+                    emitted=bson_count,
+                )
             except Exception as exc:
-                logger.error("bson_producer_failed", error=str(exc))
+                logger.error(
+                    "bson_producer_failed",
+                    error=str(exc),
+                    emitted_before_error=bson_count,
+                    exc_info=True,
+                )
             finally:
                 await queue.put(None)
 
