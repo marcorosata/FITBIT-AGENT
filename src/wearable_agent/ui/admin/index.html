@@ -247,6 +247,7 @@ textarea { resize: vertical; min-height: 70px; }
   <div class="nav-item" data-page="participants">&#x1F465; Participants</div>
   <div class="nav-label">Intelligence</div>
   <div class="nav-item" data-page="agent">&#x1F916; Agent Chat</div>
+  <div class="nav-item" data-page="tools">&#x1F9F0; Tools &amp; APIs</div>
 </nav>
 
 <!-- ── Main content ────────────────────────────────────────── -->
@@ -257,6 +258,45 @@ textarea { resize: vertical; min-height: 70px; }
        ════════════════════════════════════════════════════════ -->
   <div class="page active" id="page-streams">
     <div class="page-title">&#x1F4E1; Live Streaming Monitor</div>
+
+    <!-- ── Stream Control Panel ─────────────────────────────── -->
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="card-title">&#x1F3AE; Start Data Stream
+        <span class="sub" id="stream-status-label">Idle</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data Source</label>
+          <select id="stream-source" onchange="onStreamSourceChange()">
+            <option value="dataset">&#x1F4C1; LifeSnaps Dataset</option>
+            <option value="live">&#x1F4F1; Live Fitbit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Participant ID</label>
+          <div style="display:flex;gap:.4rem">
+            <input id="stream-participant" placeholder="e.g. 6260e01eba" style="flex:1">
+            <button class="btn btn-outline btn-sm" onclick="loadLifeSnapsParticipants()" title="Load available participants">&#x1F504;</button>
+          </div>
+        </div>
+        <div class="form-group" id="stream-speed-group">
+          <label>Speed</label>
+          <select id="stream-speed">
+            <option value="1">1x (real-time)</option>
+            <option value="10" selected>10x</option>
+            <option value="50">50x</option>
+            <option value="100">100x</option>
+          </select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end">
+          <button class="btn btn-primary" id="stream-start-btn" onclick="startDataStream()">&#x25B6; Start Stream</button>
+        </div>
+      </div>
+      <div id="stream-participants-hint" style="margin-top:.4rem; font-size:.75rem; color:var(--text3); display:none">
+        <strong>Available participants:</strong> <span id="stream-participants-list"></span>
+      </div>
+      <div id="stream-result" style="margin-top:.5rem; font-size:.82rem;"></div>
+    </div>
 
     <!-- KPI row -->
     <div class="stats-row">
@@ -537,6 +577,81 @@ textarea { resize: vertical; min-height: 70px; }
         <input id="chat-input" placeholder="e.g. Summarise P001's heart rate for the last 24h" onkeydown="if(event.key==='Enter')sendChat()">
         <button class="btn btn-primary" onclick="sendChat()">Send</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TOOLS & APIS — Full inventory visualisation
+       ════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-tools">
+    <div class="page-title">&#x1F9F0; Tools &amp; API Inventory</div>
+
+    <!-- Summary stats -->
+    <div class="stats-row" id="tools-stats-row">
+      <div class="stat-card" style="border-left:3px solid var(--accent)">
+        <div class="label">Agent Tools</div>
+        <div class="number" id="tools-agent-count">&mdash;</div>
+        <div class="sub">LangChain tools</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--inbound)">
+        <div class="label">API Endpoints</div>
+        <div class="number" id="tools-api-count">&mdash;</div>
+        <div class="sub">REST routes</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--success)">
+        <div class="label">Components</div>
+        <div class="number" id="tools-comp-count">&mdash;</div>
+        <div class="sub">system services</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--warning)">
+        <div class="label">Metrics</div>
+        <div class="number" id="tools-metric-count">&mdash;</div>
+        <div class="sub">tracked parameters</div>
+      </div>
+    </div>
+
+    <!-- Agent Tools -->
+    <div class="card" id="tools-agent-card">
+      <div class="card-title">&#x1F916; Agent Tools (LangGraph ReAct)
+        <span class="sub">Tools the LLM agent can invoke autonomously</span>
+      </div>
+      <div id="tools-agent-list" style="color:var(--text2);font-size:.85rem">Loading&hellip;</div>
+    </div>
+
+    <!-- System Components -->
+    <div class="card" id="tools-components-card">
+      <div class="card-title">&#x2699;&#xFE0F; System Components
+        <span class="sub">Infrastructure services and their status</span>
+      </div>
+      <div id="tools-components-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.75rem">Loading&hellip;</div>
+    </div>
+
+    <!-- API Endpoints -->
+    <div class="card" id="tools-api-card">
+      <div class="card-title">&#x1F310; API Endpoints
+        <span class="sub">All REST / WebSocket routes</span>
+      </div>
+      <div class="filter-bar" id="api-filter-bar"></div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Name</th><th>Description</th></tr></thead>
+          <tbody id="tools-api-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Metrics Reference -->
+    <div class="card" id="tools-metrics-card">
+      <div class="card-title">&#x1F4CA; Metric Reference
+        <span class="sub">All tracked health parameters with normal ranges</span>
+      </div>
+      <div id="tools-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.65rem">Loading&hellip;</div>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="card">
+      <div class="card-title">&#x1F3D7;&#xFE0F; Architecture Flow</div>
+      <div id="tools-arch-diagram" style="padding:.5rem;overflow-x:auto"></div>
     </div>
   </div>
 
@@ -1013,6 +1128,71 @@ function renderChat() {
   box.scrollTop = box.scrollHeight;
 }
 
+// ── Data Stream Controls ──────────────────────────────────────
+function onStreamSourceChange() {
+  var source = document.getElementById('stream-source').value;
+  var speedGroup = document.getElementById('stream-speed-group');
+  speedGroup.style.display = source === 'dataset' ? '' : 'none';
+  document.getElementById('stream-participants-hint').style.display = 'none';
+  document.getElementById('stream-result').innerHTML = '';
+}
+
+async function loadLifeSnapsParticipants() {
+  try {
+    var data = await api('GET', '/lifesnaps/participants');
+    var hint = document.getElementById('stream-participants-hint');
+    var list = document.getElementById('stream-participants-list');
+    hint.style.display = 'block';
+    if (data.length) {
+      list.innerHTML = data.slice(0, 30).map(function(p) {
+        return '<span style="cursor:pointer;color:var(--accent-light);margin-right:.4rem" onclick="document.getElementById(\'stream-participant\').value=\'' + p + '\'">' + p + '</span>';
+      }).join('') + (data.length > 30 ? '<em> +' + (data.length - 30) + ' more</em>' : '');
+    } else {
+      list.textContent = 'No participants found (data files may not be loaded yet).';
+    }
+  } catch(e) {
+    document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 Failed to load participants: ' + e.message + '</span>';
+  }
+}
+
+async function startDataStream() {
+  var source = document.getElementById('stream-source').value;
+  var pid = document.getElementById('stream-participant').value.trim();
+  if (!pid) {
+    document.getElementById('stream-result').innerHTML = '<span style="color:var(--warning)">\u26A0 Enter a participant ID first.</span>';
+    return;
+  }
+
+  var btn = document.getElementById('stream-start-btn');
+  btn.disabled = true;
+  btn.textContent = '\u23F3 Starting\u2026';
+  document.getElementById('stream-result').innerHTML = '';
+  document.getElementById('stream-status-label').textContent = 'Starting\u2026';
+
+  try {
+    var result;
+    if (source === 'dataset') {
+      var speed = parseFloat(document.getElementById('stream-speed').value);
+      result = await api('POST', '/lifesnaps/stream/' + pid, { speed: speed });
+      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Dataset streaming (' + speed + 'x)';
+      document.getElementById('stream-result').innerHTML =
+        '<span style="color:var(--success)">\u2713 LifeSnaps stream started for <strong>' + pid + '</strong> at ' + speed + 'x speed</span>';
+    } else {
+      result = await api('POST', '/sync/stream/' + pid, {});
+      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Live Fitbit streaming';
+      document.getElementById('stream-result').innerHTML =
+        '<span style="color:var(--success)">\u2713 Live Fitbit stream started for <strong>' + pid + '</strong></span>';
+    }
+    addUnified('system', 'inbound', 'Stream started: ' + source + ' \u2014 ' + pid);
+  } catch(e) {
+    document.getElementById('stream-status-label').textContent = '\uD83D\uDD34 Error';
+    document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 ' + escHtml(e.message) + '</span>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '\u25B6 Start Stream';
+}
+
 // ── Participant Evaluation ────────────────────────────────────
 async function evaluateParticipant() {
   var box = document.getElementById('eval-result');
@@ -1029,11 +1209,254 @@ async function evaluateParticipant() {
   }
 }
 
+// ── Tools & APIs page ─────────────────────────────────────────
+var toolsData = null;
+var apiTagFilter = 'all';
+
+async function loadToolsInventory() {
+  try {
+    toolsData = await api('GET', '/admin/api/tools');
+    renderToolsPage();
+  } catch(e) {
+    document.getElementById('tools-agent-list').innerHTML = '<span style="color:var(--danger)">Failed to load: ' + e.message + '</span>';
+  }
+}
+
+function renderToolsPage() {
+  if (!toolsData) return;
+  var d = toolsData;
+
+  // Summary stats
+  document.getElementById('tools-agent-count').textContent = d.agent_tools.length;
+  document.getElementById('tools-api-count').textContent = d.api_routes.length;
+  document.getElementById('tools-comp-count').textContent = d.components.length;
+  document.getElementById('tools-metric-count').textContent = d.metrics.length;
+
+  // ── Agent Tools ──────────────────────────────────────────
+  var agentHtml = d.agent_tools.map(function(t) {
+    var params = Object.keys(t.parameters || {}).map(function(p) {
+      var info = t.parameters[p];
+      return '<span style="display:inline-block;margin:.15rem .25rem;padding:.15rem .5rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:.72rem">' +
+        '<span style="color:var(--accent-light)">' + escHtml(p) + '</span>' +
+        '<span style="color:var(--text3);margin-left:.3rem">' + escHtml(info.type) + '</span>' +
+        (info.required ? '<span style="color:var(--danger);margin-left:.2rem">*</span>' : '') +
+        '</span>';
+    }).join('');
+
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem;margin-bottom:.65rem;border-left:3px solid var(--accent)">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem">' +
+        '<span style="font-size:1.05rem">&#x1F527;</span>' +
+        '<span style="font-weight:700;color:var(--accent-light);font-family:monospace;font-size:.9rem">' + escHtml(t.name) + '</span>' +
+      '</div>' +
+      '<div style="font-size:.8rem;color:var(--text2);margin-bottom:.5rem;line-height:1.5">' + escHtml(t.description) + '</div>' +
+      (params ? '<div style="margin-top:.35rem"><span style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Parameters</span><div style="margin-top:.2rem">' + params + '</div></div>' : '') +
+    '</div>';
+  }).join('');
+  document.getElementById('tools-agent-list').innerHTML = agentHtml || '<span style="color:var(--text3)">No agent tools registered.</span>';
+
+  // ── System Components ────────────────────────────────────
+  var categoryIcons = { streaming: '&#x1F4E1;', intelligence: '&#x1F9E0;', monitoring: '&#x1F6E1;', collection: '&#x1F4E5;' };
+  var categoryColors = { streaming: 'var(--inbound)', intelligence: 'var(--accent-light)', monitoring: 'var(--warning)', collection: 'var(--success)' };
+
+  var compHtml = d.components.map(function(c) {
+    var statusColor = c.status === 'running' || c.status === 'ready' || c.status === 'active' ? 'var(--success)' : 'var(--text3)';
+    var statusLabel = c.status.replace('_', ' ');
+    var icon = categoryIcons[c.category] || '&#x2699;';
+    var borderColor = categoryColors[c.category] || 'var(--border)';
+    var details = '';
+    if (c.details) {
+      var detailParts = Object.keys(c.details).map(function(k) {
+        var v = c.details[k];
+        if (typeof v === 'object') v = JSON.stringify(v);
+        return '<span><span style="color:var(--text3)">' + k + ':</span> <span style="color:var(--text)">' + v + '</span></span>';
+      });
+      if (detailParts.length) details = '<div style="font-size:.72rem;margin-top:.4rem;display:flex;gap:.75rem;flex-wrap:wrap">' + detailParts.join('') + '</div>';
+    }
+
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;border-left:3px solid ' + borderColor + '">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">' +
+        '<span style="font-size:1rem">' + icon + '</span>' +
+        '<span style="font-weight:700;font-size:.88rem">' + escHtml(c.name) + '</span>' +
+        '<span style="margin-left:auto;display:flex;align-items:center;gap:.3rem">' +
+          '<span style="width:7px;height:7px;border-radius:50%;background:' + statusColor + ';display:inline-block"></span>' +
+          '<span style="font-size:.72rem;color:' + statusColor + ';text-transform:uppercase;letter-spacing:.04em">' + statusLabel + '</span>' +
+        '</span>' +
+      '</div>' +
+      '<div style="font-size:.78rem;color:var(--text2);line-height:1.4">' + escHtml(c.description) + '</div>' +
+      details +
+    '</div>';
+  }).join('');
+  document.getElementById('tools-components-grid').innerHTML = compHtml;
+
+  // ── API Routes ───────────────────────────────────────────
+  var tagSet = {};
+  d.api_routes.forEach(function(r) {
+    (r.tags || []).forEach(function(t) { tagSet[t] = true; });
+  });
+  var tags = ['all'].concat(Object.keys(tagSet).sort());
+  var filterHtml = tags.map(function(t) {
+    return '<span class="filter-chip' + (t === apiTagFilter ? ' active' : '') + '" data-api-tag="' + t + '">' + t + '</span>';
+  }).join('');
+  document.getElementById('api-filter-bar').innerHTML = filterHtml;
+  document.querySelectorAll('[data-api-tag]').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('[data-api-tag]').forEach(function(c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      apiTagFilter = chip.dataset.apiTag;
+      renderApiTable();
+    });
+  });
+  renderApiTable();
+
+  // ── Metrics Reference ────────────────────────────────────
+  var metricColors = {
+    heart_rate: '#e17055', resting_heart_rate: '#e17055', hrv: '#fdcb6e',
+    stress: '#fd79a8', skin_temperature: '#00cec9', breathing_rate: '#74b9ff',
+    spo2: '#74b9ff', sleep: '#6c5ce7', sleep_efficiency: '#6c5ce7',
+    steps: '#00b894', calories: '#fd79a8', distance: '#00b894',
+    vo2_max: '#a29bfe', floors: '#00b894'
+  };
+
+  var metricsHtml = d.metrics.map(function(m) {
+    var color = metricColors[m.key] || 'var(--text2)';
+    var rangeStr = m.normal_range ? m.normal_range[0] + ' \u2013 ' + m.normal_range[1] + ' ' + (m.unit || '') : 'N/A';
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;border-left:3px solid ' + color + '">' +
+      '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
+        '<span style="font-weight:700;font-size:.85rem;color:' + color + '">' + escHtml(m.label) + '</span>' +
+        '<span style="margin-left:auto;font-size:.72rem;color:var(--text3);font-family:monospace">' + escHtml(m.key) + '</span>' +
+      '</div>' +
+      '<div style="font-size:.75rem;color:var(--text2);margin-bottom:.35rem;line-height:1.4">' + escHtml(m.description || '') + '</div>' +
+      '<div style="display:flex;gap:1rem;font-size:.72rem">' +
+        '<span><span style="color:var(--text3)">Unit:</span> <span style="color:var(--text)">' + escHtml(m.unit || '\u2013') + '</span></span>' +
+        '<span><span style="color:var(--text3)">Normal:</span> <span style="color:var(--success)">' + rangeStr + '</span></span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('tools-metrics-grid').innerHTML = metricsHtml;
+
+  // ── Architecture Diagram ─────────────────────────────────
+  renderArchDiagram();
+}
+
+function renderApiTable() {
+  if (!toolsData) return;
+  var filtered = apiTagFilter === 'all'
+    ? toolsData.api_routes
+    : toolsData.api_routes.filter(function(r) { return (r.tags || []).indexOf(apiTagFilter) !== -1; });
+
+  var methodColors = { GET: 'var(--success)', POST: 'var(--accent-light)', DELETE: 'var(--danger)', PUT: 'var(--warning)', PATCH: 'var(--warning)' };
+
+  var html = filtered.map(function(r) {
+    var methods = (r.methods || []).map(function(m) {
+      var c = methodColors[m] || 'var(--text2)';
+      return '<span style="display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.68rem;font-weight:700;font-family:monospace;background:' + c + '22;color:' + c + ';margin-right:.2rem">' + m + '</span>';
+    }).join('');
+    var desc = (r.summary || '').split('\n')[0].trim();
+    if (desc.length > 100) desc = desc.slice(0, 100) + '\u2026';
+    return '<tr>' +
+      '<td>' + methods + '</td>' +
+      '<td style="font-family:monospace;font-size:.8rem;color:var(--inbound)">' + escHtml(r.path) + '</td>' +
+      '<td style="font-size:.8rem">' + escHtml(r.name || '') + '</td>' +
+      '<td style="font-size:.78rem;color:var(--text2);max-width:300px;overflow:hidden;text-overflow:ellipsis">' + escHtml(desc) + '</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('tools-api-body').innerHTML = html || '<tr><td colspan="4" style="color:var(--text3)">No routes match filter.</td></tr>';
+}
+
+function renderArchDiagram() {
+  var svg = '<svg viewBox="0 0 900 420" style="width:100%;max-width:900px;height:auto;font-family:Segoe UI,system-ui,sans-serif">' +
+    '<rect width="900" height="420" rx="12" fill="#1a1d27"/>' +
+
+    // Data Sources
+    '<text x="80" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">DATA SOURCES</text>' +
+    '<rect x="20" y="42" width="120" height="44" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/>' +
+    '<text x="80" y="69" fill="#00cec9" font-size="12" text-anchor="middle" font-weight="600">Fitbit API</text>' +
+    '<rect x="20" y="96" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/>' +
+    '<text x="80" y="123" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">LifeSnaps CSV</text>' +
+    '<rect x="20" y="150" width="120" height="44" rx="8" fill="#242736" stroke="#74b9ff" stroke-width="1.5"/>' +
+    '<text x="80" y="177" fill="#74b9ff" font-size="12" text-anchor="middle" font-weight="600">Manual Ingest</text>' +
+
+    // Arrows sources to pipeline
+    '<line x1="140" y1="64" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+    '<line x1="140" y1="118" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+    '<line x1="140" y1="172" x2="200" y2="140" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+
+    // Pipeline
+    '<rect x="200" y="100" width="140" height="64" rx="10" fill="#242736" stroke="#6c5ce7" stroke-width="2"/>' +
+    '<text x="270" y="128" fill="#a29bfe" font-size="13" text-anchor="middle" font-weight="700">StreamPipeline</text>' +
+    '<text x="270" y="148" fill="#5a5e73" font-size="10" text-anchor="middle">asyncio.Queue</text>' +
+
+    // Arrows pipeline to processing
+    '<line x1="340" y1="132" x2="390" y2="80" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+    '<line x1="340" y1="132" x2="390" y2="200" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+    '<line x1="340" y1="132" x2="390" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+
+    // Processing
+    '<text x="480" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">PROCESSING</text>' +
+    '<rect x="390" y="42" width="160" height="56" rx="8" fill="#242736" stroke="#fdcb6e" stroke-width="1.5"/>' +
+    '<text x="470" y="66" fill="#fdcb6e" font-size="12" text-anchor="middle" font-weight="600">RuleEngine</text>' +
+    '<text x="470" y="84" fill="#5a5e73" font-size="10" text-anchor="middle">threshold alerts</text>' +
+
+    '<rect x="390" y="170" width="160" height="56" rx="8" fill="#242736" stroke="#6c5ce7" stroke-width="2"/>' +
+    '<text x="470" y="194" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="700">WearableAgent</text>' +
+    '<text x="470" y="212" fill="#5a5e73" font-size="10" text-anchor="middle">LangGraph ReAct + LLM</text>' +
+
+    '<rect x="390" y="282" width="160" height="56" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/>' +
+    '<text x="470" y="306" fill="#fd79a8" font-size="12" text-anchor="middle" font-weight="600">AffectPipeline</text>' +
+    '<text x="470" y="324" fill="#5a5e73" font-size="10" text-anchor="middle">arousal / stress / valence</text>' +
+
+    // Agent Tools box
+    '<rect x="574" y="152" width="130" height="90" rx="8" fill="#242736" stroke="#2e3245" stroke-width="1"/>' +
+    '<text x="639" y="170" fill="#8b8fa3" font-size="9" text-anchor="middle" font-weight="600" letter-spacing=".06em">AGENT TOOLS</text>' +
+    '<text x="639" y="186" fill="#5a5e73" font-size="9" text-anchor="middle">get_latest_readings</text>' +
+    '<text x="639" y="198" fill="#5a5e73" font-size="9" text-anchor="middle">analyse_metric</text>' +
+    '<text x="639" y="210" fill="#5a5e73" font-size="9" text-anchor="middle">compare_metrics</text>' +
+    '<text x="639" y="222" fill="#5a5e73" font-size="9" text-anchor="middle">get_affective_state</text>' +
+    '<text x="639" y="234" fill="#5a5e73" font-size="9" text-anchor="middle">+ more\u2026</text>' +
+    '<line x1="550" y1="198" x2="574" y2="198" stroke="#6c5ce7" stroke-width="1" stroke-dasharray="3,3"/>' +
+
+    // Arrows processing to outputs
+    '<line x1="550" y1="70" x2="720" y2="70" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+    '<line x1="550" y1="310" x2="620" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
+
+    // Outputs
+    '<text x="785" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">OUTPUTS</text>' +
+    '<rect x="720" y="42" width="130" height="44" rx="8" fill="#242736" stroke="#e17055" stroke-width="1.5"/>' +
+    '<text x="785" y="60" fill="#e17055" font-size="11" text-anchor="middle" font-weight="600">Alerts</text>' +
+    '<text x="785" y="76" fill="#5a5e73" font-size="9" text-anchor="middle">NotificationDispatcher</text>' +
+
+    '<rect x="620" y="280" width="130" height="56" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/>' +
+    '<text x="685" y="304" fill="#00cec9" font-size="11" text-anchor="middle" font-weight="600">SQLite DB</text>' +
+    '<text x="685" y="320" fill="#5a5e73" font-size="9" text-anchor="middle">readings / alerts / affect</text>' +
+
+    '<rect x="720" y="360" width="130" height="44" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/>' +
+    '<text x="785" y="378" fill="#fd79a8" font-size="11" text-anchor="middle" font-weight="600">WebSocket</text>' +
+    '<text x="785" y="394" fill="#5a5e73" font-size="9" text-anchor="middle">\u2192 Flutter App</text>' +
+    '<line x1="685" y1="336" x2="720" y2="370" stroke="#2e3245" stroke-width="1" marker-end="url(#arrow)"/>' +
+
+    // FastAPI & Scheduler
+    '<rect x="20" y="260" width="120" height="44" rx="8" fill="#242736" stroke="#a29bfe" stroke-width="1.5"/>' +
+    '<text x="80" y="287" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="600">FastAPI</text>' +
+    '<text x="80" y="298" fill="#5a5e73" font-size="9" text-anchor="middle">REST + WS server</text>' +
+
+    '<rect x="20" y="320" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/>' +
+    '<text x="80" y="347" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">Scheduler</text>' +
+    '<text x="80" y="358" fill="#5a5e73" font-size="9" text-anchor="middle">periodic collection</text>' +
+    '<line x1="140" y1="340" x2="200" y2="145" stroke="#2e3245" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>' +
+
+    '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+    '<path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5e73"/></marker></defs>' +
+  '</svg>';
+
+  document.getElementById('tools-arch-diagram').innerHTML = svg;
+}
+
 // ── Init ──────────────────────────────────────────────────────
 connectWS();
 refreshDashboard();
 loadRules();
 pollStreamStats();
+loadToolsInventory();
 
 setInterval(refreshDashboard, 15000);
 setInterval(pollStreamStats, 3000);
