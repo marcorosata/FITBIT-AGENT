@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api_client.dart';
@@ -16,7 +17,7 @@ class AppState extends ChangeNotifier {
   String _participantId = '';
   bool _loading = false;
   String? _error;
-  bool _useDataset = true;  // true = dataset (LifeSnaps), false = live Fitbit
+  bool _useDataset = true; // true = dataset (LifeSnaps), false = live Fitbit
 
   // Cached data
   HealthStats? stats;
@@ -68,10 +69,13 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _participantId = prefs.getString(AppConfig.keyParticipantId) ?? '';
     _useDataset = prefs.getBool('data_source_is_dataset') ?? true;
-    _api.dataSource = dataSource;  // Set data source on API client
-    notifyListeners();
+    _api.dataSource = dataSource; // Set data source on API client
+    
     if (_participantId.isNotEmpty) {
-      await refreshAll();
+      // Schedule refreshAll for after the first frame to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        refreshAll();
+      });
     }
   }
 
@@ -101,7 +105,7 @@ class AppState extends ChangeNotifier {
     _useDataset = useDataset;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('data_source_is_dataset', _useDataset);
-    _api.dataSource = dataSource;  // Update API client
+    _api.dataSource = dataSource; // Update API client
     notifyListeners();
     // Refresh data with new source
     if (hasParticipant) {
@@ -144,7 +148,8 @@ class AppState extends ChangeNotifier {
             final metric = data['metric_type'] as String? ?? '';
             final value = (data['value'] as num?)?.toDouble() ?? 0;
             final unit = data['unit'] as String? ?? '';
-            final ts = data['timestamp'] as String? ?? DateTime.now().toIso8601String();
+            final ts = data['timestamp'] as String? ??
+                DateTime.now().toIso8601String();
 
             // Accept if the participant matches (or if we're in dataset mode
             // and the server is streaming for the selected participant)
