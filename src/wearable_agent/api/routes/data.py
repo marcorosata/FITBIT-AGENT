@@ -4,13 +4,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Header
 
 from wearable_agent.api.schemas import IngestRequest
 from wearable_agent.models import MetricType, SensorReading
 from wearable_agent.storage.repository import AlertRepository, ReadingRepository
 
 router = APIRouter(tags=["data"])
+
+
+def get_data_source(x_data_source: str | None = Header(None, alias="X-Data-Source")) -> str:
+    """Dependency to extract data source from header."""
+    return x_data_source or "dataset"  # Default to dataset if not specified
 
 
 @router.post("/ingest", status_code=201)
@@ -61,9 +66,10 @@ async def get_readings(
     participant_id: str,
     metric: MetricType = Query(...),
     limit: int = Query(50, ge=1, le=1000),
+    data_source: str = Header("dataset", alias="X-Data-Source"),
 ):
     repo = ReadingRepository()
-    rows = await repo.get_latest(participant_id, metric, limit=limit)
+    rows = await repo.get_latest_by_source(participant_id, metric, data_source, limit=limit)
     return [
         {
             "id": r.id,

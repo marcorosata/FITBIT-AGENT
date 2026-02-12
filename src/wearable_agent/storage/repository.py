@@ -104,6 +104,30 @@ class ReadingRepository(BaseRepository):
         result = await session.execute(stmt)
         return result.scalars().all()
 
+    async def get_latest_by_source(
+        self,
+        participant_id: str,
+        metric_type: MetricType,
+        data_source: str,
+        limit: int = 1,
+    ) -> Sequence[SensorReadingRow]:
+        """Get latest readings filtered by data source (dataset or live)."""
+        session = await self._session()
+        # Filter by metadata JSON containing source field
+        # Note: SQLite JSON functions may be limited, using LIKE for now
+        stmt = (
+            select(SensorReadingRow)
+            .where(
+                SensorReadingRow.participant_id == participant_id,
+                SensorReadingRow.metric_type == metric_type.value,
+                SensorReadingRow.metadata_json.like(f'%"source": "{data_source}"%'),
+            )
+            .order_by(SensorReadingRow.timestamp.desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
     async def get_range(
         self,
         participant_id: str,

@@ -184,7 +184,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.STRESS,
                     value=float(row['stress_score']),
                     unit="score",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
             
             if MetricType.SPO2 in metrics and 'spo2' in row and pd.notna(row['spo2']):
@@ -194,7 +195,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.SPO2,
                     value=float(row['spo2']),
                     unit="%",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
             if MetricType.HRV in metrics and 'rmssd' in row and pd.notna(row['rmssd']):
@@ -204,7 +206,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.HRV,
                     value=float(row['rmssd']),
                     unit="ms",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
             if MetricType.BREATHING_RATE in metrics and 'full_sleep_breathing_rate' in row and pd.notna(row['full_sleep_breathing_rate']):
@@ -214,7 +217,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.BREATHING_RATE,
                     value=float(row['full_sleep_breathing_rate']),
                     unit="brpm",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
             if MetricType.SLEEP in metrics and 'minutesAsleep' in row and pd.notna(row['minutesAsleep']):
@@ -224,7 +228,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.SLEEP,
                     value=float(row['minutesAsleep']),
                     unit="min",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
         # 2. Process Hourly Metrics
@@ -238,7 +243,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.HEART_RATE,
                     value=float(row['bpm']),
                     unit="bpm",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
             if MetricType.STEPS in metrics and 'steps' in row and pd.notna(row['steps']):
@@ -248,7 +254,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.STEPS,
                     value=float(row['steps']),
                     unit="steps",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
             
             # Fallback for 'ageps' if that was the column name? 
@@ -262,7 +269,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.CALORIES,
                     value=float(row['calories']),
                     unit="kcal",
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
             if MetricType.DISTANCE in metrics and 'distance' in row and pd.notna(row['distance']):
@@ -272,7 +280,8 @@ class LifeSnapsCollector(BaseCollector):
                     metric_type=MetricType.DISTANCE,
                     value=float(row['distance']),
                     unit="m", # LifeSnaps likely meters or km? Usually API is km or meters.
-                    timestamp=ts
+                    timestamp=ts,
+                    metadata={"source": "dataset"}
                 ))
 
         return readings

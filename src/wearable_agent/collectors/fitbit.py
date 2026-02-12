@@ -377,6 +377,7 @@ class FitbitCollector(BaseCollector):
             meta: dict[str, Any] = {}
             if spec.metadata_extractor is not None:
                 meta = spec.metadata_extractor(entry)
+            meta["source"] = "live"  # Add source tag
 
             readings.append(
                 SensorReading(
@@ -430,6 +431,7 @@ class FitbitCollector(BaseCollector):
                             "zones": day.get("value", {}).get(
                                 "heartRateZones", []
                             ),
+                            "source": "live"
                         },
                     )
                 )
@@ -468,6 +470,7 @@ class FitbitCollector(BaseCollector):
                         "light_minutes": summary.get("light", {}).get("minutes"),
                         "rem_minutes": summary.get("rem", {}).get("minutes"),
                         "wake_minutes": summary.get("wake", {}).get("minutes"),
+                        "source": "live"
                     },
                 )
             )
@@ -498,6 +501,7 @@ class FitbitCollector(BaseCollector):
                     metadata={
                         "min": value_obj.get("min"),
                         "max": value_obj.get("max"),
+                        "source": "live"
                     },
                 )
             )
