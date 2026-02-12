@@ -166,7 +166,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("server.started", port=settings.api_port)
 
-    # 9. Background: download LFS data files if needed (Railway)
+    # 9. Background: download LFS data files + Auto-stream
     async def _fetch_lfs_data() -> None:
         """Download LFS pointer files from GitHub in background."""
         import subprocess
@@ -192,12 +192,32 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("server.lfs_fetch_error", error=str(e))
 
-    _lfs_task = asyncio.create_task(_fetch_lfs_data())
+    async def _background_init() -> None:
+        """Run startup tasks sequentially."""
+        # A. Fetch LFS data
+        await _fetch_lfs_data()
+
+        # B. Start auto-streaming if configured
+        pid = settings.lifesnaps_autostream_participant_id
+        if pid:
+            from wearable_agent.models import MetricType
+            from wearable_agent.api.routes.lifesnaps import _run_stream
+
+            logger.info("server.autostream_init", participant=pid)
+            metrics = [
+                MetricType.HEART_RATE, MetricType.STEPS, MetricType.STRESS,
+                MetricType.SPO2, MetricType.HRV, MetricType.BREATHING_RATE,
+                MetricType.CALORIES, MetricType.DISTANCE
+            ]
+            # Run as fire-and-forget background task
+            asyncio.create_task(_run_stream(pid, metrics, speed=60.0))  # 60x real-time speed
+
+    _startup_task = asyncio.create_task(_background_init())
 
     yield  # ← application runs
 
     # Shutdown
-    _lfs_task.cancel()
+    _startup_task.cancel()
     if _scheduler_service:
         await _scheduler_service.stop()
     if _pipeline:
