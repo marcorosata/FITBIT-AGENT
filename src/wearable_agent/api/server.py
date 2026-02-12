@@ -8,6 +8,7 @@ handlers live in ``wearable_agent.api.routes.*``.
 from __future__ import annotations
 
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 
 import structlog
@@ -165,9 +166,38 @@ async def lifespan(app: FastAPI):
 
     logger.info("server.started", port=settings.api_port)
 
+    # 9. Background: download LFS data files if needed (Railway)
+    async def _fetch_lfs_data() -> None:
+        """Download LFS pointer files from GitHub in background."""
+        import subprocess
+        from wearable_agent.config import _PROJECT_ROOT
+
+        script = _PROJECT_ROOT / "scripts" / "fetch_lfs.py"
+        if not script.exists():
+            return
+        try:
+            logger.info("server.lfs_fetch_start")
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [sys.executable, str(script)],
+                capture_output=True,
+                text=True,
+                timeout=600,
+                cwd=str(_PROJECT_ROOT),
+            )
+            logger.info("server.lfs_fetch_done", returncode=result.returncode,
+                        stdout=result.stdout[-500:] if result.stdout else "")
+            if result.stderr:
+                logger.warning("server.lfs_fetch_stderr", stderr=result.stderr[-500:])
+        except Exception as e:
+            logger.error("server.lfs_fetch_error", error=str(e))
+
+    _lfs_task = asyncio.create_task(_fetch_lfs_data())
+
     yield  # ← application runs
 
     # Shutdown
+    _lfs_task.cancel()
     if _scheduler_service:
         await _scheduler_service.stop()
     if _pipeline:
