@@ -765,6 +765,32 @@
       <div class="page active" id="page-streams">
         <div class="page-title">&#x1F4E1; Live Streaming Monitor</div>
 
+        <!-- LifeSnaps Simulation Control -->
+        <div class="card">
+          <div class="card-title">&#x1F3AC; LifeSnaps Simulation</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Participant to Replay</label>
+              <select id="sim-participant">
+                <option value="621e2e8e67b776a24055b564" selected>621e...564 (Extracted)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Speed</label>
+              <select id="sim-speed">
+                <option value="1.0" selected>1x (Real-time)</option>
+                <option value="10.0">10x</option>
+                <option value="60.0">60x (1 min = 1 sec)</option>
+                <option value="3600.0">3600x (1 hr = 1 sec)</option>
+              </select>
+            </div>
+            <div class="form-group" style="justify-content:flex-end">
+              <button class="btn btn-primary" onclick="startSimulation()">&#x25B6; Start Replay</button>
+            </div>
+          </div>
+          <div id="sim-result" style="margin-top:.5rem; font-size:.82rem;"></div>
+        </div>
+
         <!-- KPI row -->
         <div class="stats-row">
           <div class="stat-card inbound">
@@ -941,7 +967,8 @@
         <div class="page-title">&#x1F4C8; Sensor Readings</div>
         <div class="card">
           <div class="form-row">
-            <div class="form-group"><label>Participant ID</label><input id="rd-participant" value="P001"></div>
+            <div class="form-group"><label>Participant ID</label><input id="rd-participant"
+                value="621e2e8e67b776a24055b564"></div>
             <div class="form-group"><label>Metric</label>
               <option value="heart_rate">Heart Rate</option>
               <option value="resting_heart_rate">Resting HR</option>
@@ -989,7 +1016,8 @@
         <div class="page-title">&#x1F514; Alerts</div>
         <div class="card">
           <div class="form-row">
-            <div class="form-group"><label>Participant ID</label><input id="al-participant" value="P001"></div>
+            <div class="form-group"><label>Participant ID</label><input id="al-participant"
+                value="621e2e8e67b776a24055b564"></div>
             <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary"
                 onclick="loadAlerts()">&#x1F50D; Load</button></div>
           </div>
@@ -1069,7 +1097,8 @@
         <div class="card">
           <div class="card-title">Manual Data Entry</div>
           <div class="form-row">
-            <div class="form-group"><label>Participant ID</label><input id="ing-participant" value="P001"></div>
+            <div class="form-group"><label>Participant ID</label><input id="ing-participant"
+                value="621e2e8e67b776a24055b564"></div>
             <div class="form-group"><label>Device</label>
               <select id="ing-device">
                 <option value="fitbit">Fitbit</option>
@@ -1121,7 +1150,8 @@
         <div class="card">
           <div class="card-title">&#x1F52C; Participant Evaluation</div>
           <div class="form-row">
-            <div class="form-group"><label>Participant ID</label><input id="eval-participant" value="P001"></div>
+            <div class="form-group"><label>Participant ID</label><input id="eval-participant"
+                value="621e2e8e67b776a24055b564"></div>
             <div class="form-group"><label>Metric</label><select id="eval-metric">
                 <option value="heart_rate">Heart Rate</option>
                 <option value="steps">Steps</option>
@@ -1648,11 +1678,54 @@
       }
     }
 
+
+    // ── LifeSnaps Simulation ──────────────────────────────────────
+    async function loadSimParticipants() {
+      try {
+        var parts = await api('GET', '/lifesnaps/participants');
+        var sel = document.getElementById('sim-participant');
+        var target = "621e2e8e67b776a24055b564";
+
+        // Prioritize target if exists, otherwise normal list
+        if (parts && parts.length) {
+          var html = parts.map(function (p) {
+            var label = p === target ? p.slice(0, 8) + '... (Target)' : p.slice(0, 8) + '...';
+            return '<option value="' + p + '"' + (p === target ? ' selected' : '') + '>' + label + '</option>';
+          }).join('');
+
+          // If the list comes back empty or target not in it (e.g. BSON only), keep default logic
+          sel.innerHTML = html;
+          // re-select target if it's there
+          sel.value = target;
+        }
+      } catch (e) { console.warn("Could not load participants", e); }
+    }
+
+    async function startSimulation() {
+      var pid = document.getElementById('sim-participant').value;
+      var speed = parseFloat(document.getElementById('sim-speed').value);
+      var btn = document.querySelector('button[onclick="startSimulation()"]');
+
+      btn.disabled = true;
+      btn.innerHTML = 'Starting...';
+
+      try {
+        var res = await api('POST', '/lifesnaps/stream/' + pid, { speed: speed });
+        document.getElementById('sim-result').innerHTML = '<span style="color:var(--success)">\u2713 Streaming started for ' + pid.slice(0, 8) + '... at ' + speed + 'x</span>';
+      } catch (e) {
+        document.getElementById('sim-result').innerHTML = '<span style="color:var(--danger)">\u2715 ' + e.message + '</span>';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '&#x25B6; Start Replay';
+      }
+    }
+
     // ── Init ──────────────────────────────────────────────────────
     connectWS();
     refreshDashboard();
     loadRules();
     pollStreamStats();
+    loadSimParticipants();
 
     setInterval(refreshDashboard, 15000);
     setInterval(pollStreamStats, 3000);
