@@ -210,7 +210,7 @@ async def lifespan(app: FastAPI):
                 MetricType.CALORIES, MetricType.DISTANCE
             ]
             # Run as fire-and-forget background task
-            asyncio.create_task(_run_stream(pid, metrics, speed=60.0))  # 60x real-time speed
+            asyncio.create_task(_run_stream(pid, metrics, speed=1.0))  # Natural real-time speed
 
     _startup_task = asyncio.create_task(_background_init())
 
