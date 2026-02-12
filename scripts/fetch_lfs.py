@@ -22,13 +22,9 @@ CSV_FILES = [
     "scripts/rais_anonymized/csv_rais_anonymized/hourly_fitbit_sema_df_unprocessed.csv",
 ]
 
-# BSON parts (~2.16 GB total) — only if FETCH_BSON=1
+# Single-participant BSON (~64 MB) — always downloaded
 BSON_FILES = [
-    "scripts/rais_anonymized/mongo_rais_anonymized/fitbit_parts/fitbit.bson.part001",
-    "scripts/rais_anonymized/mongo_rais_anonymized/fitbit_parts/fitbit.bson.part002",
-    "scripts/rais_anonymized/mongo_rais_anonymized/fitbit_parts/fitbit.bson.part003",
-    "scripts/rais_anonymized/mongo_rais_anonymized/fitbit_parts/fitbit.bson.part004",
-    "scripts/rais_anonymized/mongo_rais_anonymized/fitbit_parts/fitbit.bson.part005",
+    "scripts/rais_anonymized/mongo_rais_anonymized/participant_621e2e8e67b776a24055b564.bson",
 ]
 
 MAX_POINTER_SIZE = 200  # LFS pointer files are ~130 bytes
@@ -85,12 +81,7 @@ def main() -> None:
     print(f"  Python: {sys.executable}")
     sys.stdout.flush()
 
-    files_to_fetch = list(CSV_FILES)
-    if os.environ.get("FETCH_BSON", "").strip() == "1":
-        print("  FETCH_BSON=1 → including BSON parts")
-        files_to_fetch.extend(BSON_FILES)
-    else:
-        print("  Skipping BSON parts (set FETCH_BSON=1 to include)")
+    files_to_fetch = list(CSV_FILES) + list(BSON_FILES)
 
     downloaded = 0
     skipped = 0

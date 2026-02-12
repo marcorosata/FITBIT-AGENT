@@ -273,16 +273,24 @@ class LifeSnapsCollector(BaseCollector):
     ) -> AsyncIterator[SensorReading]:
         """Yield readings from BSON file, time-shifted."""
         from wearable_agent.collectors.lifesnaps_bson import BSONStreamer
-        
-        bson_path = self.data_path / "mongo_rais_anonymized" / "fitbit.bson"
-        # If the full bson doesn't exist, try reassembling from LFS parts
-        if not bson_path.exists():
-            parts_dir = bson_path.parent / "fitbit_parts"
-            if parts_dir.exists() and list(parts_dir.glob("fitbit.bson.part*")):
-                logger.info("Reassembling fitbit.bson from LFS parts...")
-                self._reassemble_bson(parts_dir, bson_path)
-            else:
-                logger.warning(f"BSON file not found: {bson_path}")
+
+        mongo_dir = self.data_path / "mongo_rais_anonymized"
+
+        # 1. Prefer per-participant BSON (small, deployed via GitHub)
+        per_participant = mongo_dir / f"participant_{participant_id}.bson"
+        if per_participant.exists() and per_participant.stat().st_size > 200:
+            bson_path = per_participant
+            logger.info(f"Using per-participant BSON: {bson_path}")
+        else:
+            # 2. Fall back to full fitbit.bson
+            bson_path = mongo_dir / "fitbit.bson"
+            if not bson_path.exists():
+                parts_dir = bson_path.parent / "fitbit_parts"
+                if parts_dir.exists() and list(parts_dir.glob("fitbit.bson.part*")):
+                    logger.info("Reassembling fitbit.bson from LFS parts...")
+                    self._reassemble_bson(parts_dir, bson_path)
+                else:
+                    logger.warning(f"No BSON data found for {participant_id} in {mongo_dir}")
         streamer = BSONStreamer(bson_path)
         
         # We need to find the first timestamp to synchronize

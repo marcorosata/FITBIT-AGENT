@@ -52,7 +52,7 @@ def debug_data_files():
     result: dict[str, object] = {
         "project_root": str(_PROJECT_ROOT),
         "cwd": os.getcwd(),
-        "build_version": "v3-urllib",  # bump this to confirm deploy
+        "build_version": "v4-participant-bson",  # bump this to confirm deploy
     }
 
     candidates = [
@@ -72,7 +72,16 @@ def debug_data_files():
             "hourly_csv_exists": hourly.exists(),
             "hourly_csv_size_bytes": hourly.stat().st_size if hourly.exists() else 0,
             "mongo_dir_exists": mongo.exists(),
-            "mongo_files": [f.name for f in mongo.iterdir()] if mongo.exists() else [],
+            "mongo_files": (
+                [
+                    {"name": f.name, "size_mb": round(f.stat().st_size / 1024 / 1024, 1)}
+                    for f in mongo.iterdir()
+                    if f.is_file()
+                ]
+                + [{"name": d.name, "type": "dir"} for d in mongo.iterdir() if d.is_dir()]
+                if mongo.exists()
+                else []
+            ),
         }
 
     # Check if LFS pointers (small files ~130 bytes)
