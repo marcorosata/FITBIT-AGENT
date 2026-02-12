@@ -39,8 +39,46 @@ def list_participants():
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error("lifesnaps.list_failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to load dataset")
+        logger.error("lifesnaps.list_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to load dataset: {e}")
+
+
+@router.get("/debug", summary="Debug data file locations")
+def debug_data_files():
+    """Show data file paths and sizes for debugging deployment issues."""
+    import os
+    from wearable_agent.config import _PROJECT_ROOT
+
+    result: dict[str, object] = {"project_root": str(_PROJECT_ROOT), "cwd": os.getcwd()}
+
+    candidates = [
+        _PROJECT_ROOT / "scripts" / "rais_anonymized",
+        _PROJECT_ROOT / "data" / "lifesnaps" / "rais_anonymized",
+    ]
+    for p in candidates:
+        key = str(p.relative_to(_PROJECT_ROOT))
+        csv_dir = p / "csv_rais_anonymized"
+        daily = csv_dir / "daily_fitbit_sema_df_unprocessed.csv"
+        hourly = csv_dir / "hourly_fitbit_sema_df_unprocessed.csv"
+        mongo = p / "mongo_rais_anonymized"
+        result[key] = {
+            "exists": p.exists(),
+            "daily_csv_exists": daily.exists(),
+            "daily_csv_size_bytes": daily.stat().st_size if daily.exists() else 0,
+            "hourly_csv_exists": hourly.exists(),
+            "hourly_csv_size_bytes": hourly.stat().st_size if hourly.exists() else 0,
+            "mongo_dir_exists": mongo.exists(),
+            "mongo_files": [f.name for f in mongo.iterdir()] if mongo.exists() else [],
+        }
+
+    # Check if LFS pointers (small files ~130 bytes)
+    for p in candidates:
+        daily = p / "csv_rais_anonymized" / "daily_fitbit_sema_df_unprocessed.csv"
+        if daily.exists() and daily.stat().st_size < 200:
+            key = str(p.relative_to(_PROJECT_ROOT))
+            result[f"{key}_WARNING"] = "CSV file is too small — likely an LFS pointer, not real data"
+
+    return result
 
 
 @router.post("/stream/{participant_id}", summary="Start streaming replay")
