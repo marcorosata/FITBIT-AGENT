@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pip install -e . && (git lfs install && git lfs pull || echo 'LFS pull skipped')"
+    "buildCommand": "pip install -e . && git lfs install && git lfs pull"
   },
   "deploy": {
     "startCommand": "python -m wearable_agent.main serve --host 0.0.0.0",
