@@ -193,6 +193,40 @@ async def toggle_component(component_name: str):
     raise HTTPException(400, f"Component '{component_name}' cannot be toggled from the admin UI.")
 
 
+@router.post("/admin/api/tools/test", tags=["admin"])
+async def test_tool(body: dict):
+    """Invoke an agent tool directly with given parameters and return the result.
+
+    Accepts ``{"tool_name": "...", "parameters": {...}}``.
+    """
+    from fastapi import HTTPException
+
+    from wearable_agent.api.server import _agent
+
+    tool_name = body.get("tool_name")
+    parameters = body.get("parameters", {})
+
+    if not tool_name:
+        raise HTTPException(422, "tool_name is required")
+    if _agent is None:
+        raise HTTPException(503, "Agent not initialised")
+
+    tool = None
+    for t in _agent._tools:
+        if t.name == tool_name:
+            tool = t
+            break
+    if tool is None:
+        raise HTTPException(404, f"Tool '{tool_name}' not found")
+
+    try:
+        result = await tool.ainvoke(parameters)
+        return {"tool": tool_name, "result": result}
+    except Exception as exc:
+        logger.error("admin.tool_test_failed", tool=tool_name, error=str(exc))
+        raise HTTPException(500, f"Tool execution failed: {exc}")
+
+
 @router.get("/admin/api/tools", tags=["admin"])
 async def get_tools_inventory():
     """Return a complete inventory of all agent tools, API routes, and system components."""

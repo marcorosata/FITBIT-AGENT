@@ -578,7 +578,8 @@ class _StreamDataButtonState extends State<_StreamDataButton> {
 
     // Context-aware labels
     final sourceLabel = isDataset ? 'LifeSnaps Dataset' : 'Live Fitbit';
-    final sourceIcon = isDataset ? Icons.dataset_rounded : Icons.sensors_rounded;
+    final sourceIcon =
+        isDataset ? Icons.dataset_rounded : Icons.sensors_rounded;
     final actionLabel = isDataset ? 'Replay Data' : 'Sync Live Data';
     final streamingLabel = isDataset ? 'Replaying...' : 'Syncing Live...';
     final buttonLabel = isStreaming
@@ -614,7 +615,8 @@ class _StreamDataButtonState extends State<_StreamDataButton> {
           // Data source indicator
           Row(
             children: [
-              Icon(sourceIcon, size: 14, color: theme.colorScheme.onSurfaceVariant),
+              Icon(sourceIcon,
+                  size: 14, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 6),
               Text(
                 'Source: $sourceLabel',
@@ -625,7 +627,8 @@ class _StreamDataButtonState extends State<_StreamDataButton> {
               if (isStreaming && state.liveReadingCount > 0) ...[
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppTheme.fitbitTeal.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),

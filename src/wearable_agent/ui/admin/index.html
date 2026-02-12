@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wearable Agent — Admin Dashboard</title>
+<title>Wearable Agent — Research Control Panel</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -26,186 +26,110 @@
   --critical-dim: rgba(214,48,49,.15);
   --info: #74b9ff;
   --info-dim: rgba(116,185,255,.15);
-  --inbound: #00cec9;
-  --inbound-dim: rgba(0,206,201,.12);
-  --outbound: #fd79a8;
-  --outbound-dim: rgba(253,121,168,.12);
+  --cardiac: #e17055;
+  --respiratory: #74b9ff;
+  --activity: #00b894;
+  --sleep-c: #6c5ce7;
+  --body: #fd79a8;
+  --affect-c: #a29bfe;
   --radius: 12px;
   --shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
-  min-height: 100vh;
-}
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
 a { color: var(--accent-light); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ── Layout ─────────────────────────────────────────────── */
-.topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 2rem;
-  display: flex;
-  align-items: center;
-  height: 56px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.topbar h1 { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: .5rem; }
+/* ── Layout ─────────────────────────────────── */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
+.topbar h1 { font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: .5rem; }
 .topbar h1 span { color: var(--accent-light); }
-.topbar .right { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
-.topbar .status { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--text2); }
+.topbar .right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+.topbar .status { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--text2); }
 .topbar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); transition: background .3s; }
 .topbar .dot.online { background: var(--success); animation: pulse 2s infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-.shell { display: grid; grid-template-columns: 210px 1fr; min-height: calc(100vh - 56px); }
+.shell { display: grid; grid-template-columns: 200px 1fr; min-height: calc(100vh - 52px); }
 
-/* ── Sidebar ─────────────────────────────────────────────── */
-.sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 1rem 0;
-  overflow-y: auto;
-}
-.sidebar .nav-label { padding: .4rem 1.25rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); margin-top: .8rem; }
+/* ── Sidebar ─────────────────────────────────── */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: .75rem 0; overflow-y: auto; }
+.sidebar .nav-label { padding: .35rem 1.15rem; font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); margin-top: .6rem; }
 .sidebar .nav-item {
-  display: flex; align-items: center; gap: .55rem;
-  padding: .55rem 1.25rem; font-size: .85rem; color: var(--text2);
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem 1.15rem; font-size: .82rem; color: var(--text2);
   cursor: pointer; transition: all .15s; border-left: 3px solid transparent;
 }
 .sidebar .nav-item:hover { color: var(--text); background: var(--surface2); }
 .sidebar .nav-item.active { color: var(--accent-light); background: rgba(108,92,231,.08); border-left-color: var(--accent); }
 
-/* ── Main ────────────────────────────────────────────────── */
-.main { padding: 1.5rem 2rem; overflow-y: auto; max-height: calc(100vh - 56px); }
+/* ── Main ─────────────────────────────────────── */
+.main { padding: 1.5rem 2rem; overflow-y: auto; max-height: calc(100vh - 52px); }
 .page { display: none; }
 .page.active { display: block; }
-.page-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: .5rem; }
+.page-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+.page-title .sub { font-size: .78rem; color: var(--text2); font-weight: 400; margin-left: .5rem; }
 
-/* ── Stat cards ──────────────────────────────────────────── */
-.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
-.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; }
-.stat-card .label { font-size: .75rem; color: var(--text2); margin-bottom: .15rem; text-transform: uppercase; letter-spacing: .04em; }
-.stat-card .number { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
-.stat-card .sub { font-size: .72rem; color: var(--text3); margin-top: .15rem; }
-.stat-card.inbound { border-left: 3px solid var(--inbound); }
-.stat-card.outbound { border-left: 3px solid var(--outbound); }
-.stat-card.clients { border-left: 3px solid var(--accent); }
-.stat-card.alerts-stat { border-left: 3px solid var(--warning); }
+/* ── Stat cards ──────────────────────────────── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .65rem; margin-bottom: 1.15rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1rem; }
+.stat-card .label { font-size: .7rem; color: var(--text2); margin-bottom: .1rem; text-transform: uppercase; letter-spacing: .04em; }
+.stat-card .number { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.stat-card .sub { font-size: .68rem; color: var(--text3); margin-top: .1rem; }
 
-/* ── Cards ───────────────────────────────────────────────── */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.25rem; }
-.card-title { font-size: .95rem; font-weight: 600; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem; }
-.card-title .sub { font-size: .75rem; color: var(--text2); margin-left: auto; font-weight: 400; }
+/* ── Cards ───────────────────────────────────── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.15rem; margin-bottom: 1rem; }
+.card-title { font-size: .92rem; font-weight: 600; margin-bottom: .65rem; display: flex; align-items: center; gap: .5rem; }
+.card-title .sub { font-size: .72rem; color: var(--text2); margin-left: auto; font-weight: 400; }
 
-/* ── Split stream panels ─────────────────────────────────── */
-.stream-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
-@media (max-width: 1100px) { .stream-grid { grid-template-columns: 1fr; } }
-
-.stream-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.stream-panel.inbound { border-top: 3px solid var(--inbound); }
-.stream-panel.outbound { border-top: 3px solid var(--outbound); }
-
-.stream-header { padding: .75rem 1.15rem; display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid var(--border); }
-.stream-header .icon { font-size: 1.1rem; }
-.stream-header .title { font-size: .9rem; font-weight: 600; }
-.stream-header .count { margin-left: auto; font-size: .78rem; color: var(--text2); font-variant-numeric: tabular-nums; }
-
-.stream-body { max-height: 400px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: .76rem; }
-.stream-body::-webkit-scrollbar { width: 6px; }
-.stream-body::-webkit-scrollbar-track { background: transparent; }
-.stream-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-.stream-entry { padding: .4rem 1rem; border-bottom: 1px solid rgba(255,255,255,.03); display: flex; gap: .75rem; align-items: baseline; transition: background .15s; }
-.stream-entry:hover { background: var(--surface2); }
-.stream-entry .ts { color: var(--text3); min-width: 75px; font-size: .72rem; }
-.stream-entry .tag { min-width: 72px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.stream-entry .msg { color: var(--text); word-break: break-word; }
-
-.tag-reading { color: var(--inbound); }
-.tag-alert { color: var(--warning); }
-.tag-affect { color: #a29bfe; }
-.tag-system { color: var(--text2); }
-.tag-heart_rate { color: #e17055; }
-.tag-steps { color: #00b894; }
-.tag-sleep { color: #6c5ce7; }
-.tag-spo2 { color: #74b9ff; }
-.tag-hrv { color: #fdcb6e; }
-.tag-calories { color: #fd79a8; }
-
-/* ── Live chart ──────────────────────────────────────────── */
-.chart-container { position: relative; height: 120px; margin: .75rem 0; }
-.chart-canvas { width: 100%; height: 100%; }
-.chart-label { position: absolute; top: 4px; right: 8px; font-size: .68rem; color: var(--text3); }
-
-/* ── Connection grid ─────────────────────────────────────── */
-.conn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .5rem; }
-.conn-chip {
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-  padding: .6rem .9rem; text-align: center;
-}
-.conn-chip .ch-name { font-size: .78rem; color: var(--text2); text-transform: capitalize; }
-.conn-chip .ch-count { font-size: 1.3rem; font-weight: 700; margin-top: .1rem; }
-
-/* ── Tables ──────────────────────────────────────────────── */
+/* ── Tables ──────────────────────────────────── */
 table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-th { text-align: left; padding: .5rem .65rem; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
-td { padding: .5rem .65rem; border-bottom: 1px solid rgba(255,255,255,.04); }
+th { text-align: left; padding: .45rem .6rem; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+td { padding: .45rem .6rem; border-bottom: 1px solid rgba(255,255,255,.04); }
 tr:hover { background: var(--surface2); }
 
-/* ── Badges ──────────────────────────────────────────────── */
-.badge { display: inline-block; padding: .12rem .5rem; border-radius: 999px; font-size: .7rem; font-weight: 600; text-transform: uppercase; }
+/* ── Badges ──────────────────────────────────── */
+.badge { display: inline-block; padding: .1rem .45rem; border-radius: 999px; font-size: .68rem; font-weight: 600; text-transform: uppercase; }
 .badge-info { background: var(--info-dim); color: var(--info); }
 .badge-warning { background: var(--warning-dim); color: var(--warning); }
 .badge-critical { background: var(--critical-dim); color: var(--critical); }
 .badge-success { background: var(--success-dim); color: var(--success); }
-.badge-inbound { background: var(--inbound-dim); color: var(--inbound); }
-.badge-outbound { background: var(--outbound-dim); color: var(--outbound); }
 
-/* ── Forms ───────────────────────────────────────────────── */
-.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-bottom: .75rem; }
-.form-group { display: flex; flex-direction: column; gap: .25rem; }
-.form-group label { font-size: .78rem; color: var(--text2); }
+/* ── Forms ───────────────────────────────────── */
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .65rem; margin-bottom: .65rem; }
+.form-group { display: flex; flex-direction: column; gap: .2rem; }
+.form-group label { font-size: .75rem; color: var(--text2); }
 input, select, textarea {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-  padding: .5rem .7rem; color: var(--text); font-size: .85rem; font-family: inherit; outline: none; transition: border .15s;
+  padding: .45rem .65rem; color: var(--text); font-size: .84rem; font-family: inherit; outline: none; transition: border .15s;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-textarea { resize: vertical; min-height: 70px; }
+textarea { resize: vertical; min-height: 60px; }
 .btn {
-  display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1.1rem;
+  display: inline-flex; align-items: center; gap: .35rem; padding: .45rem 1rem;
   border: none; border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit;
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: #5b4bd5; }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger:hover { background: #c0392b; }
-.btn-sm { padding: .3rem .65rem; font-size: .75rem; }
+.btn-sm { padding: .28rem .6rem; font-size: .74rem; }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
 .btn-outline:hover { border-color: var(--accent); color: var(--accent-light); }
+.btn-test { background: rgba(0,184,148,.12); border: 1px solid var(--success); color: var(--success); }
+.btn-test:hover { background: rgba(0,184,148,.22); }
 
-/* ── Agent chat ──────────────────────────────────────────── */
-.chat-box { background: var(--surface2); border-radius: var(--radius); padding: 1rem; max-height: 380px; overflow-y: auto; font-size: .85rem; white-space: pre-wrap; line-height: 1.7; }
-.chat-input-row { display: flex; gap: .75rem; }
-.chat-input-row input { flex: 1; }
-
-/* ── Filter bar ──────────────────────────────────────────── */
-.filter-bar { display: flex; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap; }
+/* ── Filter bar ──────────────────────────────── */
+.filter-bar { display: flex; gap: .4rem; margin-bottom: .65rem; flex-wrap: wrap; }
 .filter-chip {
-  padding: .3rem .7rem; border-radius: 999px; font-size: .72rem; font-weight: 600;
+  padding: .25rem .6rem; border-radius: 999px; font-size: .7rem; font-weight: 600;
   border: 1px solid var(--border); cursor: pointer; transition: all .15s; color: var(--text2);
   text-transform: uppercase; letter-spacing: .03em; user-select: none;
 }
 .filter-chip:hover { border-color: var(--accent); color: var(--text); }
 .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* ── Modal overlay ────────────────────────────────────────── */
+/* ── Modal overlay ───────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,.55); z-index: 200; align-items: center; justify-content: center;
@@ -213,536 +137,526 @@ textarea { resize: vertical; min-height: 70px; }
 .modal-overlay.open { display: flex; }
 .modal-box {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 1.5rem; width: 440px; max-width: 92vw; box-shadow: var(--shadow);
+  padding: 1.25rem; width: 500px; max-width: 94vw; box-shadow: var(--shadow);
 }
-.modal-box .modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
-.modal-box .modal-close { margin-left: auto; cursor: pointer; background: none; border: none; color: var(--text3); font-size: 1.2rem; }
+.modal-box .modal-title { font-size: .95rem; font-weight: 700; margin-bottom: .85rem; display: flex; align-items: center; gap: .5rem; }
+.modal-box .modal-close { margin-left: auto; cursor: pointer; background: none; border: none; color: var(--text3); font-size: 1.1rem; }
 .modal-box .modal-close:hover { color: var(--text); }
-.modal-box .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+.modal-box .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .85rem; }
 
-/* ── Toggle button ────────────────────────────────────────── */
-.toggle-btn {
-  display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .55rem;
-  border-radius: 6px; font-size: .68rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text2); transition: all .15s; margin-top: .3rem;
+/* ── Sensor metric cards ─────────────────────── */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .6rem; }
+.metric-card {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  padding: .75rem .95rem; border-left: 3px solid var(--text3); transition: border-color .2s;
 }
-.toggle-btn:hover { border-color: var(--accent); color: var(--accent-light); }
-.toggle-btn.running { border-color: var(--success); color: var(--success); }
-
-/* ── Edit button ──────────────────────────────────────────── */
-.edit-btn {
-  display: inline-flex; align-items: center; padding: .15rem .4rem; border-radius: 5px;
-  font-size: .68rem; cursor: pointer; border: 1px solid transparent;
-  background: transparent; color: var(--text3); transition: all .15s;
+.metric-card:hover { border-color: var(--accent); }
+.metric-card .mc-header { display: flex; align-items: center; gap: .4rem; margin-bottom: .2rem; }
+.metric-card .mc-label { font-weight: 700; font-size: .84rem; }
+.metric-card .mc-key { font-size: .68rem; color: var(--text3); font-family: monospace; margin-left: auto; }
+.metric-card .mc-desc { font-size: .74rem; color: var(--text2); line-height: 1.4; margin-bottom: .3rem; }
+.metric-card .mc-meta { display: flex; gap: .8rem; font-size: .7rem; flex-wrap: wrap; }
+.metric-card .mc-meta span { display: flex; gap: .2rem; }
+.metric-card .mc-actions { display: flex; gap: .3rem; margin-top: .35rem; }
+.mc-edit-btn {
+  padding: .15rem .4rem; border-radius: 5px; font-size: .68rem; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--text3); transition: all .15s;
 }
-.edit-btn:hover { border-color: var(--accent); color: var(--accent-light); background: rgba(108,92,231,.08); }
+.mc-edit-btn:hover { border-color: var(--accent); color: var(--accent-light); background: rgba(108,92,231,.08); }
 
-/* ── Responsive ──────────────────────────────────────────── */
+/* ── Tool cards ──────────────────────────────── */
+.tool-card {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  padding: .85rem 1rem; margin-bottom: .55rem; border-left: 3px solid var(--accent);
+}
+.tool-card .tc-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
+.tool-card .tc-name { font-weight: 700; color: var(--accent-light); font-family: monospace; font-size: .88rem; }
+.tool-card .tc-desc { font-size: .78rem; color: var(--text2); line-height: 1.45; margin-bottom: .4rem; }
+.tool-card .tc-params { display: flex; flex-wrap: wrap; gap: .2rem; }
+.tool-card .tc-param {
+  display: inline-block; padding: .12rem .45rem; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; font-size: .7rem;
+}
+.tool-card .tc-param .pname { color: var(--accent-light); }
+.tool-card .tc-param .ptype { color: var(--text3); margin-left: .2rem; }
+.tool-card .tc-param .preq { color: var(--danger); margin-left: .15rem; }
+
+/* ── Chat ────────────────────────────────────── */
+.chat-box { background: var(--surface2); border-radius: var(--radius); padding: .85rem; max-height: 400px; overflow-y: auto; font-size: .84rem; white-space: pre-wrap; line-height: 1.7; }
+.chat-input-row { display: flex; gap: .65rem; }
+.chat-input-row input { flex: 1; }
+
+/* ── Component status ────────────────────────── */
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
+.comp-chip {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: .55rem .8rem; display: flex; align-items: center; gap: .5rem;
+}
+.comp-chip .comp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.comp-chip .comp-name { font-size: .8rem; font-weight: 600; }
+.comp-chip .comp-detail { font-size: .68rem; color: var(--text3); margin-left: auto; }
+
+/* ── Activity feed ───────────────────────────── */
+.feed { max-height: 300px; overflow-y: auto; font-family: 'Cascadia Code','Fira Code','Consolas',monospace; font-size: .74rem; }
+.feed::-webkit-scrollbar { width: 5px; }
+.feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.feed-entry { padding: .3rem .8rem; border-bottom: 1px solid rgba(255,255,255,.03); display: flex; gap: .6rem; align-items: baseline; }
+.feed-entry:hover { background: var(--surface2); }
+.feed-entry .ts { color: var(--text3); min-width: 68px; font-size: .68rem; }
+.feed-entry .tag { font-size: .66rem; font-weight: 600; text-transform: uppercase; min-width: 60px; }
+.feed-entry .msg { color: var(--text); word-break: break-word; }
+
+/* ── Test result ─────────────────────────────── */
+.test-result { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .75rem; font-family: monospace; font-size: .78rem; white-space: pre-wrap; max-height: 300px; overflow-y: auto; line-height: 1.5; }
+
+/* ── Responsive ──────────────────────────────── */
 @media (max-width: 768px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .stats-row { grid-template-columns: 1fr 1fr; }
-  .stream-grid { grid-template-columns: 1fr; }
+  .metric-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 
-<!-- ── Top bar ────────────────────────────────────────────── -->
+<!-- ── Top bar ──────────────────────────────── -->
 <div class="topbar">
-  <h1>&#x1FA7A; <span>Wearable Agent</span> &mdash; Admin</h1>
+  <h1>&#x1FA7A; <span>Wearable Agent</span> &#x2014; Research Panel</h1>
   <div class="right">
-    <a href="/static/wearable-agent-app.apk" download="wearable-agent-app.apk" style="display:flex;align-items:center;gap:.4rem;padding:.45rem .85rem;background:var(--accent);color:white;border-radius:6px;font-size:.8rem;font-weight:600;text-decoration:none;transition:all .2s;" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background='var(--accent)'">
-      <span style="font-size:1.1rem;">&#x1F4F1;</span> Download App
+    <a href="/static/wearable-agent-app.apk" download style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;background:var(--accent);color:white;border-radius:6px;font-size:.76rem;font-weight:600;text-decoration:none">
+      &#x1F4F1; App
     </a>
     <div class="status">
       <div class="dot" id="status-dot"></div>
       <span id="status-text">Connecting&hellip;</span>
     </div>
-    <span style="font-size:.75rem;color:var(--text3)" id="ws-status">WS: &mdash;</span>
   </div>
 </div>
 
 <div class="shell">
 
-<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<!-- ── Sidebar ──────────────────────────────── -->
 <nav class="sidebar">
-  <div class="nav-label">Streaming</div>
-  <div class="nav-item active" data-page="streams">&#x1F4E1; Live Streams</div>
-  <div class="nav-item" data-page="dashboard">&#x1F4CA; Dashboard</div>
+  <div class="nav-label">Research</div>
+  <div class="nav-item active" data-page="overview">&#x1F3E0; Overview</div>
+  <div class="nav-item" data-page="sensors">&#x1F4A0; Sensors &amp; Metrics</div>
   <div class="nav-label">Data</div>
+  <div class="nav-item" data-page="collection">&#x1F4E1; Data Collection</div>
   <div class="nav-item" data-page="readings">&#x1F4C8; Readings</div>
-  <div class="nav-item" data-page="alerts">&#x1F514; Alerts</div>
-  <div class="nav-label">Management</div>
-  <div class="nav-item" data-page="rules">&#x2699;&#xFE0F; Rules</div>
-  <div class="nav-item" data-page="ingest">&#x1F4E5; Ingest Data</div>
   <div class="nav-item" data-page="participants">&#x1F465; Participants</div>
+  <div class="nav-label">Monitoring</div>
+  <div class="nav-item" data-page="rules">&#x1F6E1;&#xFE0F; Rules &amp; Alerts</div>
   <div class="nav-label">Intelligence</div>
-  <div class="nav-item" data-page="agent">&#x1F916; Agent Chat</div>
-  <div class="nav-item" data-page="tools">&#x1F9F0; Tools &amp; APIs</div>
+  <div class="nav-item" data-page="tools">&#x1F9EA; Agent Tools</div>
+  <div class="nav-item" data-page="chat">&#x1F916; Agent Chat</div>
 </nav>
 
-<!-- ── Main content ────────────────────────────────────────── -->
+<!-- ── Main ─────────────────────────────────── -->
 <div class="main">
 
-  <!-- ════════════════════════════════════════════════════════
-       STREAMS — Primary view: incoming Fitbit & outgoing to App
-       ════════════════════════════════════════════════════════ -->
-  <div class="page active" id="page-streams">
-    <div class="page-title">&#x1F4E1; Live Streaming Monitor</div>
+<!-- ════════════════════════════════════════════
+     OVERVIEW — Researcher command center
+     ════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <div class="page-title">&#x1F3E0; Overview</div>
 
-    <!-- ── Stream Control Panel ─────────────────────────────── -->
-    <div class="card" style="border-left:3px solid var(--accent)">
-      <div class="card-title">&#x1F3AE; Start Data Stream
-        <span class="sub" id="stream-status-label">Idle</span>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Data Source</label>
-          <select id="stream-source" onchange="onStreamSourceChange()">
-            <option value="dataset">&#x1F4C1; LifeSnaps Dataset</option>
-            <option value="live">&#x1F4F1; Live Fitbit</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Participant ID</label>
-          <div style="display:flex;gap:.4rem">
-            <input id="stream-participant" placeholder="e.g. 6260e01eba" style="flex:1">
-            <button class="btn btn-outline btn-sm" onclick="loadLifeSnapsParticipants()" title="Load available participants">&#x1F504;</button>
-          </div>
-        </div>
-        <div class="form-group" id="stream-speed-group">
-          <label>Speed</label>
-          <select id="stream-speed">
-            <option value="1">1x (real-time)</option>
-            <option value="10" selected>10x</option>
-            <option value="50">50x</option>
-            <option value="100">100x</option>
-          </select>
-        </div>
-        <div class="form-group" style="justify-content:flex-end">
-          <button class="btn btn-primary" id="stream-start-btn" onclick="startDataStream()">&#x25B6; Start Stream</button>
-        </div>
-      </div>
-      <div id="stream-participants-hint" style="margin-top:.4rem; font-size:.75rem; color:var(--text3); display:none">
-        <strong>Available participants:</strong> <span id="stream-participants-list"></span>
-      </div>
-      <div id="stream-result" style="margin-top:.5rem; font-size:.82rem;"></div>
+  <div class="stats-row">
+    <div class="stat-card" style="border-left:3px solid var(--accent)">
+      <div class="label">Participants</div>
+      <div class="number" id="ov-participants">&mdash;</div>
+      <div class="sub">enrolled</div>
     </div>
-
-    <!-- KPI row -->
-    <div class="stats-row">
-      <div class="stat-card inbound">
-        <div class="label">Inbound (Fitbit)</div>
-        <div class="number" id="st-inbound">0</div>
-        <div class="sub"><span id="st-inbound-rate">0</span> /sec</div>
-      </div>
-      <div class="stat-card outbound">
-        <div class="label">Outbound (to App)</div>
-        <div class="number" id="st-outbound">0</div>
-        <div class="sub"><span id="st-outbound-rate">0</span> /sec</div>
-      </div>
-      <div class="stat-card clients">
-        <div class="label">WS Clients</div>
-        <div class="number" id="st-clients">0</div>
-        <div class="sub">connected now</div>
-      </div>
-      <div class="stat-card alerts-stat">
-        <div class="label">Alerts Fired</div>
-        <div class="number" id="st-alerts-fired">0</div>
-        <div class="sub">this session</div>
-      </div>
+    <div class="stat-card" style="border-left:3px solid var(--info)">
+      <div class="label">Readings</div>
+      <div class="number" id="ov-readings">&mdash;</div>
+      <div class="sub">total stored</div>
     </div>
-
-    <!-- Throughput mini-chart -->
-    <div class="card">
-      <div class="card-title">&#x26A1; Throughput
-        <span class="sub">messages/sec &mdash; last 60 seconds</span>
-      </div>
-      <div class="chart-container">
-        <canvas id="throughput-chart" class="chart-canvas"></canvas>
-        <span class="chart-label">
-          <span style="color:var(--inbound)">&#x25A0;</span> Inbound
-          <span style="color:var(--outbound);margin-left:.5rem">&#x25A0;</span> Outbound
-        </span>
-      </div>
+    <div class="stat-card" style="border-left:3px solid var(--warning)">
+      <div class="label">Alerts</div>
+      <div class="number" id="ov-alerts">&mdash;</div>
+      <div class="sub">triggered</div>
     </div>
-
-    <!-- Channel connections -->
-    <div class="card">
-      <div class="card-title">&#x1F50C; Channel Subscriptions
-        <span class="sub" id="conn-update-time">&mdash;</span>
-      </div>
-      <div class="conn-grid" id="channel-grid">
-        <div class="conn-chip"><div class="ch-name">all</div><div class="ch-count">0</div></div>
-        <div class="conn-chip"><div class="ch-name">readings</div><div class="ch-count">0</div></div>
-        <div class="conn-chip"><div class="ch-name">alerts</div><div class="ch-count">0</div></div>
-        <div class="conn-chip"><div class="ch-name">affect</div><div class="ch-count">0</div></div>
-        <div class="conn-chip"><div class="ch-name">system</div><div class="ch-count">0</div></div>
-      </div>
+    <div class="stat-card" style="border-left:3px solid var(--success)">
+      <div class="label">Rules</div>
+      <div class="number" id="ov-rules">&mdash;</div>
+      <div class="sub">active</div>
     </div>
-
-    <!-- Split stream panels -->
-    <div class="stream-grid">
-      <!-- Inbound from Fitbit -->
-      <div class="stream-panel inbound">
-        <div class="stream-header">
-          <span class="icon">&#x2B07;&#xFE0F;</span>
-          <span class="title" style="color:var(--inbound)">Incoming from Fitbit</span>
-          <span class="count" id="inbound-count">0 messages</span>
-        </div>
-        <div class="stream-body" id="inbound-log">
-          <div class="stream-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for Fitbit data&hellip;</span></div>
-        </div>
-      </div>
-
-      <!-- Outbound to App -->
-      <div class="stream-panel outbound">
-        <div class="stream-header">
-          <span class="icon">&#x2B06;&#xFE0F;</span>
-          <span class="title" style="color:var(--outbound)">Outgoing to Flutter App</span>
-          <span class="count" id="outbound-count">0 messages</span>
-        </div>
-        <div class="stream-body" id="outbound-log">
-          <div class="stream-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for broadcasts&hellip;</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Unified live log with filters -->
-    <div class="card">
-      <div class="card-title">&#x1F4CB; Unified Event Log
-        <span class="sub" id="log-total">0 events</span>
-      </div>
-      <div class="filter-bar">
-        <span class="filter-chip active" data-filter="all">All</span>
-        <span class="filter-chip" data-filter="reading">Readings</span>
-        <span class="filter-chip" data-filter="alert">Alerts</span>
-        <span class="filter-chip" data-filter="affect">Affect</span>
-        <span class="filter-chip" data-filter="system">System</span>
-        <span class="filter-chip" data-filter="inbound">Inbound</span>
-        <span class="filter-chip" data-filter="outbound">Outbound</span>
-      </div>
-      <div class="stream-body" id="unified-log" style="max-height:320px">
-        <div class="stream-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for events&hellip;</span></div>
-      </div>
+    <div class="stat-card" style="border-left:3px solid var(--accent-light)">
+      <div class="label">Agent Tools</div>
+      <div class="number" id="ov-tools">&mdash;</div>
+      <div class="sub">available</div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════
-       DASHBOARD — Overview stats
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-dashboard">
-    <div class="page-title">&#x1F4CA; Dashboard</div>
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="label">Total Readings</div>
-        <div class="number" id="stat-readings">&mdash;</div>
-        <div class="sub">all participants</div>
+  <!-- System components status -->
+  <div class="card">
+    <div class="card-title">&#x2699;&#xFE0F; System Components</div>
+    <div class="comp-grid" id="ov-components">
+      <div class="comp-chip"><span class="comp-dot" style="background:var(--text3)"></span><span class="comp-name">Loading&hellip;</span></div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="card-title">&#x26A1; Quick Actions</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+      <button class="btn btn-primary" onclick="goTo('collection')">&#x1F4E1; Start Data Stream</button>
+      <button class="btn btn-outline" onclick="goTo('sensors')">&#x1F4A0; View Sensors</button>
+      <button class="btn btn-outline" onclick="goTo('rules')">&#x1F6E1;&#xFE0F; Add Rule</button>
+      <button class="btn btn-outline" onclick="goTo('tools')">&#x1F9EA; Test Agent Tool</button>
+      <button class="btn btn-outline" onclick="goTo('chat')">&#x1F916; Agent Chat</button>
+    </div>
+  </div>
+
+  <!-- Recent alerts -->
+  <div class="card">
+    <div class="card-title">&#x1F514; Recent Alerts <span class="sub" id="ov-alert-count"></span></div>
+    <table>
+      <thead><tr><th>Time</th><th>Participant</th><th>Metric</th><th>Value</th><th>Severity</th><th>Message</th></tr></thead>
+      <tbody id="ov-alerts-body"><tr><td colspan="6" style="color:var(--text3)">Loading&hellip;</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SENSORS & METRICS — Core researcher view
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-sensors">
+  <div class="page-title">&#x1F4A0; Sensors &amp; Metrics <span class="sub" id="sensor-count"></span></div>
+  <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem;">
+    All physiological and behavioural metrics tracked by the framework. Click <strong>Edit</strong> to change labels, units, normal ranges, and descriptions. These values are used by the agent and rule engine.
+  </p>
+
+  <!-- Category filter -->
+  <div class="filter-bar" id="sensor-filter-bar">
+    <span class="filter-chip active" data-sensor-cat="all">All</span>
+    <span class="filter-chip" data-sensor-cat="cardiac">Cardiac</span>
+    <span class="filter-chip" data-sensor-cat="respiratory">Respiratory</span>
+    <span class="filter-chip" data-sensor-cat="activity">Activity</span>
+    <span class="filter-chip" data-sensor-cat="sleep">Sleep</span>
+    <span class="filter-chip" data-sensor-cat="body">Body</span>
+    <span class="filter-chip" data-sensor-cat="affect">Affect</span>
+  </div>
+
+  <div class="metric-grid" id="sensor-grid">
+    <div style="color:var(--text3)">Loading sensor data&hellip;</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     DATA COLLECTION — Start streams, control flow
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-collection">
+  <div class="page-title">&#x1F4E1; Data Collection</div>
+
+  <!-- Stream control -->
+  <div class="card" style="border-left:3px solid var(--accent)">
+    <div class="card-title">&#x1F3AE; Start Data Stream <span class="sub" id="stream-status-label">Idle</span></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data Source</label>
+        <select id="stream-source" onchange="onStreamSourceChange()">
+          <option value="dataset">&#x1F4C1; LifeSnaps Dataset</option>
+          <option value="live">&#x1F4F1; Live Fitbit</option>
+        </select>
       </div>
-      <div class="stat-card">
-        <div class="label">Active Alerts</div>
-        <div class="number" id="stat-alerts">&mdash;</div>
-        <div class="sub">all time</div>
+      <div class="form-group">
+        <label>Participant ID</label>
+        <div style="display:flex;gap:.35rem">
+          <input id="stream-participant" placeholder="e.g. 6260e01eba" style="flex:1">
+          <button class="btn btn-outline btn-sm" onclick="loadLifeSnapsParticipants()" title="Load available">&#x1F504;</button>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="label">Monitoring Rules</div>
-        <div class="number" id="stat-rules">&mdash;</div>
-        <div class="sub">active</div>
+      <div class="form-group" id="stream-speed-group">
+        <label>Speed</label>
+        <select id="stream-speed">
+          <option value="1">1x (real-time)</option>
+          <option value="10" selected>10x</option>
+          <option value="50">50x</option>
+          <option value="100">100x</option>
+        </select>
       </div>
-      <div class="stat-card">
-        <div class="label">Pipeline Pending</div>
-        <div class="number" id="stat-pipeline">&mdash;</div>
-        <div class="sub">queued items</div>
+      <div class="form-group" style="justify-content:flex-end">
+        <button class="btn btn-primary" id="stream-start-btn" onclick="startDataStream()">&#x25B6; Start Stream</button>
       </div>
     </div>
-
-    <!-- System info -->
-    <div class="card">
-      <div class="card-title">&#x1F5A5; System Status</div>
-      <div id="system-info" style="font-size:.85rem; color:var(--text2)">Loading&hellip;</div>
+    <div id="stream-participants-hint" style="margin-top:.35rem;font-size:.72rem;color:var(--text3);display:none">
+      <strong>Available:</strong> <span id="stream-participants-list"></span>
     </div>
+    <div id="stream-result" style="margin-top:.4rem;font-size:.82rem;"></div>
+  </div>
 
-    <div class="card">
-      <div class="card-title">&#x1F4CB; Recent Alerts</div>
+  <!-- Manual ingest -->
+  <div class="card">
+    <div class="card-title">&#x1F4E5; Manual Data Entry</div>
+    <div class="form-row">
+      <div class="form-group"><label>Participant ID</label><input id="ing-participant" value="P001"></div>
+      <div class="form-group"><label>Device</label>
+        <select id="ing-device"><option value="fitbit">Fitbit</option><option value="apple_watch">Apple Watch</option><option value="garmin">Garmin</option><option value="generic">Generic</option></select>
+      </div>
+      <div class="form-group"><label>Metric</label>
+        <select id="ing-metric"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Value</label><input id="ing-value" type="number" step="0.1" placeholder="72"></div>
+      <div class="form-group"><label>Unit</label><input id="ing-unit" value="bpm"></div>
+      <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="ingestData()">&#x1F4E4; Submit</button></div>
+    </div>
+    <div id="ingest-result" style="margin-top:.4rem;font-size:.82rem;"></div>
+  </div>
+
+  <!-- Batch ingest -->
+  <div class="card">
+    <div class="card-title">&#x1F4E6; Batch Ingest (JSON)</div>
+    <textarea id="ing-batch" rows="4" placeholder='[{"participant_id":"P001","device_type":"fitbit","metric_type":"heart_rate","value":72,"unit":"bpm"}]'></textarea>
+    <div style="margin-top:.4rem"><button class="btn btn-primary" onclick="ingestBatch()">&#x1F4E4; Submit Batch</button></div>
+    <div id="batch-result" style="margin-top:.4rem;font-size:.82rem;"></div>
+  </div>
+
+  <!-- Live activity feed -->
+  <div class="card">
+    <div class="card-title">&#x1F4CB; Live Activity Feed <span class="sub" id="feed-count">0 events</span></div>
+    <div class="feed" id="live-feed">
+      <div class="feed-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for data&hellip;</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     READINGS — Query stored data
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-readings">
+  <div class="page-title">&#x1F4C8; Readings</div>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-group"><label>Participant ID</label><input id="rd-participant" value="P001"></div>
+      <div class="form-group"><label>Metric</label><select id="rd-metric"></select></div>
+      <div class="form-group"><label>Limit</label><input id="rd-limit" type="number" value="50" min="1" max="1000"></div>
+      <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="loadReadings()">&#x1F50D; Query</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Results <span class="sub" id="readings-stats"></span></div>
+    <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Time</th><th>Participant</th><th>Metric</th><th>Value</th><th>Severity</th><th>Message</th></tr></thead>
-        <tbody id="dash-alerts-body"></tbody>
+        <thead><tr><th>Timestamp</th><th>Value</th><th>Unit</th><th>Device</th></tr></thead>
+        <tbody id="readings-body"><tr><td colspan="4" style="color:var(--text3)">Run a query above.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     PARTICIPANTS
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-participants">
+  <div class="page-title">&#x1F465; Participants</div>
+  <div class="card">
+    <div class="card-title">Enrolled Participants</div>
+    <div id="participants-list" style="color:var(--text2);font-size:.84rem;">Loading&hellip;</div>
+  </div>
+  <div class="card">
+    <div class="card-title">&#x1F52C; AI Participant Evaluation</div>
+    <div class="form-row">
+      <div class="form-group"><label>Participant ID</label><input id="eval-participant" value="P001"></div>
+      <div class="form-group"><label>Metric</label><select id="eval-metric"></select></div>
+      <div class="form-group"><label>Hours</label><input id="eval-hours" type="number" value="24" min="1" max="168"></div>
+      <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="evaluateParticipant()">&#x1F916; Evaluate</button></div>
+    </div>
+    <div id="eval-result" class="chat-box" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     RULES & ALERTS
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-rules">
+  <div class="page-title">&#x1F6E1;&#xFE0F; Rules &amp; Alerts</div>
+
+  <div class="card">
+    <div class="card-title">&#x2795; Add Monitoring Rule</div>
+    <div class="form-row">
+      <div class="form-group"><label>Metric</label><select id="rule-metric"></select></div>
+      <div class="form-group"><label>Condition</label><input id="rule-condition" placeholder="e.g. value > 120"></div>
+      <div class="form-group"><label>Severity</label>
+        <select id="rule-severity"><option value="info">Info</option><option value="warning" selected>Warning</option><option value="critical">Critical</option></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:.65rem"><label>Message Template</label><input id="rule-message" value="Metric {metric_type} value {value} breached rule."></div>
+    <button class="btn btn-primary" onclick="addRule()">Add Rule</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F4DD; Active Rules <span class="sub" id="rules-count"></span></div>
+    <table>
+      <thead><tr><th>ID</th><th>Metric</th><th>Condition</th><th>Severity</th><th>Message</th><th></th></tr></thead>
+      <tbody id="rules-body"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F514; Alert History</div>
+    <div class="form-row" style="margin-bottom:.5rem">
+      <div class="form-group"><label>Participant</label><input id="al-participant" value="P001"></div>
+      <div class="form-group" style="justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="loadAlerts()">&#x1F50D; Load Alerts</button></div>
+    </div>
+    <table>
+      <thead><tr><th>Time</th><th>Severity</th><th>Metric</th><th>Value</th><th>Message</th></tr></thead>
+      <tbody id="alerts-body"><tr><td colspan="5" style="color:var(--text3)">Click Load to query alerts.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     AGENT TOOLS — View & test tools directly
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-tools">
+  <div class="page-title">&#x1F9EA; Agent Tools <span class="sub">LangGraph ReAct tools the AI can invoke</span></div>
+  <p style="color:var(--text2);font-size:.82rem;margin-bottom:.85rem;">
+    These are the tools available to the AI agent. Click <strong>Test</strong> to invoke any tool directly with your own parameters and see the raw output.
+  </p>
+
+  <div class="stats-row">
+    <div class="stat-card" style="border-left:3px solid var(--accent)">
+      <div class="label">Agent Tools</div>
+      <div class="number" id="tools-count">&mdash;</div>
+      <div class="sub">LangChain tools</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--info)">
+      <div class="label">API Endpoints</div>
+      <div class="number" id="api-count">&mdash;</div>
+      <div class="sub">REST routes</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--success)">
+      <div class="label">Components</div>
+      <div class="number" id="comp-count">&mdash;</div>
+      <div class="sub">services</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--warning)">
+      <div class="label">Metrics</div>
+      <div class="number" id="metric-count">&mdash;</div>
+      <div class="sub">tracked</div>
+    </div>
+  </div>
+
+  <!-- Agent Tools with Test buttons -->
+  <div id="tools-list">
+    <div style="color:var(--text3)">Loading agent tools&hellip;</div>
+  </div>
+
+  <!-- API Endpoints -->
+  <div class="card" style="margin-top:.75rem">
+    <div class="card-title">&#x1F310; API Endpoints</div>
+    <div class="filter-bar" id="api-filter-bar"></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Name</th><th>Description</th></tr></thead>
+        <tbody id="api-body"></tbody>
       </table>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════
-       READINGS
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-readings">
-    <div class="page-title">&#x1F4C8; Sensor Readings</div>
-    <div class="card">
-      <div class="form-row">
-        <div class="form-group"><label>Participant ID</label><input id="rd-participant" value="P001"></div>
-        <div class="form-group"><label>Metric</label>
-          <select id="rd-metric">
-            <option value="heart_rate">Heart Rate</option><option value="steps">Steps</option>
-            <option value="sleep">Sleep</option><option value="spo2">SpO2</option>
-            <option value="hrv">HRV</option><option value="calories">Calories</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Limit</label><input id="rd-limit" type="number" value="50" min="1" max="1000"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="loadReadings()">&#x1F50D; Query</button></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Results <span class="sub" id="readings-stats"></span></div>
-      <div style="overflow-x:auto">
-        <table><thead><tr><th>Timestamp</th><th>Value</th><th>Unit</th><th>Device</th></tr></thead>
-        <tbody id="readings-body"></tbody></table>
-      </div>
+  <!-- Architecture Diagram -->
+  <div class="card">
+    <div class="card-title">&#x1F3D7;&#xFE0F; Architecture Flow</div>
+    <div id="arch-diagram" style="padding:.4rem;overflow-x:auto"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     AGENT CHAT
+     ════════════════════════════════════════════ -->
+<div class="page" id="page-chat">
+  <div class="page-title">&#x1F916; Agent Chat</div>
+  <div class="card">
+    <p style="color:var(--text2);font-size:.82rem;margin-bottom:.65rem;">
+      Ask the AI agent research questions. It can query participant data, compute statistics, detect anomalies, and reason about physiological patterns.
+    </p>
+    <div class="chat-box" id="chat-messages"><em style="color:var(--text3)">No messages yet. Ask a question below.</em></div>
+    <div class="chat-input-row" style="margin-top:.65rem">
+      <input id="chat-input" placeholder="e.g. Summarise P001's heart rate for the last 24h" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn btn-primary" onclick="sendChat()">Send</button>
     </div>
   </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       ALERTS
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-alerts">
-    <div class="page-title">&#x1F514; Alerts</div>
-    <div class="card">
-      <div class="form-row">
-        <div class="form-group"><label>Participant ID</label><input id="al-participant" value="P001"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="loadAlerts()">&#x1F50D; Load</button></div>
-      </div>
-    </div>
-    <div class="card">
-      <table><thead><tr><th>Time</th><th>Severity</th><th>Metric</th><th>Value</th><th>Message</th></tr></thead>
-      <tbody id="alerts-body"></tbody></table>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       RULES
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-rules">
-    <div class="page-title">&#x2699;&#xFE0F; Monitoring Rules</div>
-    <div class="card">
-      <div class="card-title">&#x2795; Add New Rule</div>
-      <div class="form-row">
-        <div class="form-group"><label>Metric</label>
-          <select id="rule-metric"><option value="heart_rate">Heart Rate</option><option value="steps">Steps</option><option value="sleep">Sleep</option><option value="spo2">SpO2</option><option value="hrv">HRV</option></select>
-        </div>
-        <div class="form-group"><label>Condition</label><input id="rule-condition" placeholder="e.g. value > 120"></div>
-        <div class="form-group"><label>Severity</label>
-          <select id="rule-severity"><option value="info">Info</option><option value="warning" selected>Warning</option><option value="critical">Critical</option></select>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:.75rem"><label>Message Template</label><input id="rule-message" value="Metric {metric_type} value {value} breached rule."></div>
-      <button class="btn btn-primary" onclick="addRule()">Add Rule</button>
-    </div>
-    <div class="card">
-      <div class="card-title">&#x1F4DD; Active Rules</div>
-      <table><thead><tr><th>ID</th><th>Metric</th><th>Condition</th><th>Severity</th><th>Message</th><th></th></tr></thead>
-      <tbody id="rules-body"></tbody></table>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       INGEST
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-ingest">
-    <div class="page-title">&#x1F4E5; Ingest Data</div>
-    <div class="card">
-      <div class="card-title">Manual Data Entry</div>
-      <div class="form-row">
-        <div class="form-group"><label>Participant ID</label><input id="ing-participant" value="P001"></div>
-        <div class="form-group"><label>Device</label>
-          <select id="ing-device"><option value="fitbit">Fitbit</option><option value="apple_watch">Apple Watch</option><option value="garmin">Garmin</option><option value="generic">Generic</option></select>
-        </div>
-        <div class="form-group"><label>Metric</label>
-          <select id="ing-metric"><option value="heart_rate">Heart Rate</option><option value="steps">Steps</option><option value="sleep">Sleep</option><option value="spo2">SpO2</option><option value="hrv">HRV</option></select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Value</label><input id="ing-value" type="number" step="0.1" placeholder="72"></div>
-        <div class="form-group"><label>Unit</label><input id="ing-unit" value="bpm"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="ingestData()">&#x1F4E4; Submit</button></div>
-      </div>
-      <div id="ingest-result" style="margin-top:.5rem; font-size:.82rem;"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">&#x1F4E6; Batch Ingest (JSON)</div>
-      <textarea id="ing-batch" rows="5" placeholder='[{"participant_id":"P001","device_type":"fitbit","metric_type":"heart_rate","value":72,"unit":"bpm"}]'></textarea>
-      <div style="margin-top:.5rem"><button class="btn btn-primary" onclick="ingestBatch()">&#x1F4E4; Submit Batch</button></div>
-      <div id="batch-result" style="margin-top:.5rem; font-size:.82rem;"></div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       PARTICIPANTS
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-participants">
-    <div class="page-title">&#x1F465; Participants</div>
-    <div class="card">
-      <div class="card-title">Known Participants</div>
-      <div id="participants-list" style="color:var(--text2); font-size:.85rem;">Loading&hellip;</div>
-    </div>
-    <div class="card">
-      <div class="card-title">&#x1F52C; Participant Evaluation</div>
-      <div class="form-row">
-        <div class="form-group"><label>Participant ID</label><input id="eval-participant" value="P001"></div>
-        <div class="form-group"><label>Metric</label><select id="eval-metric"><option value="heart_rate">Heart Rate</option><option value="steps">Steps</option></select></div>
-        <div class="form-group"><label>Hours</label><input id="eval-hours" type="number" value="24" min="1" max="168"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="evaluateParticipant()">&#x1F916; Evaluate</button></div>
-      </div>
-      <div id="eval-result" class="chat-box" style="display:none"></div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       AGENT CHAT
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-agent">
-    <div class="page-title">&#x1F916; Agent Chat</div>
-    <div class="card">
-      <p style="color:var(--text2); font-size:.82rem; margin-bottom:.75rem">
-        Ask the LLM agent research questions. It can query data, compute statistics, and reason about anomalies.
-      </p>
-      <div class="chat-box" id="chat-messages"><em style="color:var(--text3)">No messages yet. Ask a question below.</em></div>
-      <div class="chat-input-row" style="margin-top:.75rem">
-        <input id="chat-input" placeholder="e.g. Summarise P001's heart rate for the last 24h" onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="btn btn-primary" onclick="sendChat()">Send</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════
-       TOOLS & APIS — Full inventory visualisation
-       ════════════════════════════════════════════════════════ -->
-  <div class="page" id="page-tools">
-    <div class="page-title">&#x1F9F0; Tools &amp; API Inventory</div>
-
-    <!-- Summary stats -->
-    <div class="stats-row" id="tools-stats-row">
-      <div class="stat-card" style="border-left:3px solid var(--accent)">
-        <div class="label">Agent Tools</div>
-        <div class="number" id="tools-agent-count">&mdash;</div>
-        <div class="sub">LangChain tools</div>
-      </div>
-      <div class="stat-card" style="border-left:3px solid var(--inbound)">
-        <div class="label">API Endpoints</div>
-        <div class="number" id="tools-api-count">&mdash;</div>
-        <div class="sub">REST routes</div>
-      </div>
-      <div class="stat-card" style="border-left:3px solid var(--success)">
-        <div class="label">Components</div>
-        <div class="number" id="tools-comp-count">&mdash;</div>
-        <div class="sub">system services</div>
-      </div>
-      <div class="stat-card" style="border-left:3px solid var(--warning)">
-        <div class="label">Metrics</div>
-        <div class="number" id="tools-metric-count">&mdash;</div>
-        <div class="sub">tracked parameters</div>
-      </div>
-    </div>
-
-    <!-- Agent Tools -->
-    <div class="card" id="tools-agent-card">
-      <div class="card-title">&#x1F916; Agent Tools (LangGraph ReAct)
-        <span class="sub">Tools the LLM agent can invoke autonomously</span>
-      </div>
-      <div id="tools-agent-list" style="color:var(--text2);font-size:.85rem">Loading&hellip;</div>
-    </div>
-
-    <!-- System Components -->
-    <div class="card" id="tools-components-card">
-      <div class="card-title">&#x2699;&#xFE0F; System Components
-        <span class="sub">Infrastructure services and their status</span>
-      </div>
-      <div id="tools-components-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.75rem">Loading&hellip;</div>
-    </div>
-
-    <!-- API Endpoints -->
-    <div class="card" id="tools-api-card">
-      <div class="card-title">&#x1F310; API Endpoints
-        <span class="sub">All REST / WebSocket routes</span>
-      </div>
-      <div class="filter-bar" id="api-filter-bar"></div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>Method</th><th>Path</th><th>Name</th><th>Description</th></tr></thead>
-          <tbody id="tools-api-body"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Metrics Reference -->
-    <div class="card" id="tools-metrics-card">
-      <div class="card-title">&#x1F4CA; Metric Reference
-        <span class="sub">All tracked health parameters with normal ranges</span>
-      </div>
-      <div id="tools-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.65rem">Loading&hellip;</div>
-    </div>
-
-    <!-- Architecture Diagram -->
-    <div class="card">
-      <div class="card-title">&#x1F3D7;&#xFE0F; Architecture Flow</div>
-      <div id="tools-arch-diagram" style="padding:.5rem;overflow-x:auto"></div>
-    </div>
-  </div>
+</div>
 
 </div><!-- .main -->
 </div><!-- .shell -->
 
-<!-- ── Metric Edit Modal ──────────────────────────────────── -->
+<!-- ── Metric Edit Modal ───────────────────── -->
 <div class="modal-overlay" id="metric-edit-modal">
   <div class="modal-box">
-    <div class="modal-title">
-      &#x270F;&#xFE0F; Edit Metric
-      <button class="modal-close" onclick="closeMetricModal()">&times;</button>
-    </div>
+    <div class="modal-title">&#x270F;&#xFE0F; Edit Metric <button class="modal-close" onclick="closeMetricModal()">&times;</button></div>
     <input type="hidden" id="me-key">
-    <div class="form-group" style="margin-bottom:.65rem">
-      <label>Label</label>
-      <input id="me-label" placeholder="Display name">
-    </div>
+    <div class="form-group" style="margin-bottom:.55rem"><label>Label</label><input id="me-label"></div>
     <div class="form-row">
-      <div class="form-group"><label>Unit</label><input id="me-unit" placeholder="e.g. bpm"></div>
+      <div class="form-group"><label>Unit</label><input id="me-unit"></div>
       <div class="form-group"><label>Range Low</label><input id="me-range-low" type="number" step="0.1"></div>
       <div class="form-group"><label>Range High</label><input id="me-range-high" type="number" step="0.1"></div>
     </div>
-    <div class="form-group" style="margin-top:.65rem">
-      <label>Description</label>
-      <textarea id="me-description" rows="3"></textarea>
-    </div>
+    <div class="form-group" style="margin-top:.55rem"><label>Description</label><textarea id="me-description" rows="3"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeMetricModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveMetricEdit()">&#x1F4BE; Save</button>
     </div>
-    <div id="me-result" style="font-size:.78rem;margin-top:.4rem"></div>
+    <div id="me-result" style="font-size:.76rem;margin-top:.35rem"></div>
+  </div>
+</div>
+
+<!-- ── Tool Test Modal ─────────────────────── -->
+<div class="modal-overlay" id="tool-test-modal">
+  <div class="modal-box" style="width:560px">
+    <div class="modal-title">&#x1F9EA; Test Tool: <span id="tt-name" style="font-family:monospace;color:var(--accent-light)"></span> <button class="modal-close" onclick="closeToolTestModal()">&times;</button></div>
+    <div id="tt-desc" style="font-size:.78rem;color:var(--text2);margin-bottom:.65rem;"></div>
+    <div id="tt-params-form"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeToolTestModal()">Cancel</button>
+      <button class="btn btn-test" id="tt-run-btn" onclick="runToolTest()">&#x25B6; Run Tool</button>
+    </div>
+    <div id="tt-result" style="margin-top:.65rem;display:none">
+      <div style="font-size:.72rem;color:var(--text2);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.05em">Result</div>
+      <div class="test-result" id="tt-output"></div>
+    </div>
   </div>
 </div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════
-   ADMIN DASHBOARD — JavaScript
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   RESEARCH CONTROL PANEL — JavaScript
+   ═══════════════════════════════════════════════════ */
 
-const API = '';  // same origin
+const API = '';
 
-// ── State ─────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────
 let ws = null;
 let wsConnected = false;
-let inboundMessages = [];
-let outboundMessages = [];
-let allMessages = [];
-let alertsFiredCount = 0;
-let activeFilter = 'all';
+let feedMessages = [];
+let toolsData = null;
+let apiTagFilter = 'all';
+let sensorCatFilter = 'all';
+const MAX_FEED = 200;
 
-// Throughput chart data (60 data points = 1 per second)
-const CHART_LEN = 60;
-let inboundRates = new Array(CHART_LEN).fill(0);
-let outboundRates = new Array(CHART_LEN).fill(0);
-let inboundBucket = 0;
-let outboundBucket = 0;
+// Metric categories for filtering
+const METRIC_CATEGORIES = {
+  heart_rate: 'cardiac', resting_heart_rate: 'cardiac', hrv: 'cardiac',
+  breathing_rate: 'respiratory', spo2: 'respiratory',
+  steps: 'activity', calories: 'activity', distance: 'activity', floors: 'activity',
+  active_zone_minutes: 'activity', sedentary_minutes: 'activity',
+  lightly_active_minutes: 'activity', moderately_active_minutes: 'activity', very_active_minutes: 'activity',
+  sleep: 'sleep', sleep_efficiency: 'sleep',
+  skin_temperature: 'body', skin_temperature_variation: 'body',
+  body_weight: 'body', body_fat: 'body', vo2_max: 'body',
+  stress: 'affect', affect_tag: 'affect'
+};
 
-// ── Navigation ────────────────────────────────────────────────
+const CAT_COLORS = {
+  cardiac: 'var(--cardiac)', respiratory: 'var(--respiratory)', activity: 'var(--activity)',
+  sleep: 'var(--sleep-c)', body: 'var(--body)', affect: 'var(--affect-c)'
+};
+
+// ── Navigation ────────────────────────────────
 document.querySelectorAll('.nav-item').forEach(function(item) {
   item.addEventListener('click', function() {
     document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
@@ -752,18 +666,27 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
   });
 });
 
-// Filter chips
-document.querySelectorAll('.filter-chip').forEach(function(chip) {
+function goTo(page) {
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    n.classList.remove('active');
+    if (n.dataset.page === page) n.classList.add('active');
+  });
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-' + page).classList.add('active');
+}
+
+// Sensor category filter
+document.querySelectorAll('[data-sensor-cat]').forEach(function(chip) {
   chip.addEventListener('click', function() {
-    document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+    document.querySelectorAll('[data-sensor-cat]').forEach(function(c) { c.classList.remove('active'); });
     chip.classList.add('active');
-    activeFilter = chip.dataset.filter;
-    renderUnifiedLog();
+    sensorCatFilter = chip.dataset.sensorCat;
+    renderSensorGrid();
   });
 });
 
-// ── Helpers ───────────────────────────────────────────────────
-async function api(method, path, body) {
+// ── Helpers ────────────────────────────────────
+async function apiCall(method, path, body) {
   var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   var r = await fetch(API + path, opts);
@@ -774,668 +697,314 @@ async function api(method, path, body) {
 function fmtTime(iso) { return new Date(iso).toLocaleTimeString(); }
 function fmtDate(iso) { return new Date(iso).toLocaleString(); }
 function nowTime() { return new Date().toLocaleTimeString(); }
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function severityBadge(s) {
-  var cls = s === 'critical' ? 'badge-critical' : s === 'warning' ? 'badge-warning' : 'badge-info';
-  return '<span class="badge ' + cls + '">' + s + '</span>';
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sevBadge(s) {
+  var c = s==='critical'?'badge-critical':s==='warning'?'badge-warning':'badge-info';
+  return '<span class="badge '+c+'">'+s+'</span>';
 }
 
-// ── WebSocket Connection ──────────────────────────────────────
+// ── Populate metric <select> elements ─────────
+function populateMetricSelects() {
+  if (!toolsData) return;
+  var selects = ['rd-metric','ing-metric','rule-metric','eval-metric'];
+  selects.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = toolsData.metrics.map(function(m) {
+      return '<option value="'+esc(m.key)+'">'+esc(m.label)+' ('+esc(m.key)+')</option>';
+    }).join('');
+  });
+}
+
+// ── WebSocket ─────────────────────────────────
 function connectWS() {
   var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  var url = proto + '//' + location.host + '/ws/stream?channel=all';
-  ws = new WebSocket(url);
+  ws = new WebSocket(proto + '//' + location.host + '/ws/stream?channel=all');
 
   ws.onopen = function() {
     wsConnected = true;
     document.getElementById('status-dot').className = 'dot online';
     document.getElementById('status-text').textContent = 'Online';
-    document.getElementById('ws-status').textContent = 'WS: Connected';
-    document.getElementById('ws-status').style.color = 'var(--success)';
-    addUnified('system', 'outbound', 'Admin dashboard connected via WebSocket');
+    addFeed('system', 'Admin panel connected');
   };
 
   ws.onmessage = function(event) {
-    try {
-      var msg = JSON.parse(event.data);
-      handleWSMessage(msg);
-    } catch(e) { console.warn('WS parse error', e); }
+    try { handleWSMessage(JSON.parse(event.data)); } catch(e) {}
   };
 
   ws.onclose = function() {
     wsConnected = false;
     document.getElementById('status-dot').className = 'dot';
-    document.getElementById('status-text').textContent = 'Disconnected';
-    document.getElementById('ws-status').textContent = 'WS: Reconnecting\u2026';
-    document.getElementById('ws-status').style.color = 'var(--warning)';
+    document.getElementById('status-text').textContent = 'Reconnecting\u2026';
     setTimeout(connectWS, 3000);
   };
 
   ws.onerror = function() {
-    document.getElementById('ws-status').textContent = 'WS: Error';
-    document.getElementById('ws-status').style.color = 'var(--danger)';
+    document.getElementById('status-text').textContent = 'Error';
   };
 }
 
 function handleWSMessage(msg) {
-  var ts = nowTime();
   var type = msg.type || 'unknown';
-  var data = msg.data || {};
-
+  var d = msg.data || {};
   if (type === 'reading') {
-    var metric = data.metric_type || '?';
-    var summary = (data.participant_id || '?') + ' ' + metric + ' = ' + (data.value != null ? data.value : '?') + ' ' + (data.unit || '');
-
-    // Track as both inbound (from Fitbit) and outbound (to app clients)
-    addInbound(ts, metric, summary, data);
-    addOutbound(ts, 'reading', '\u2192 ' + summary, data);
-    inboundBucket++;
-    outboundBucket++;
-
+    addFeed(d.metric_type || 'reading', (d.participant_id||'?')+' '+(d.metric_type||'?')+' = '+(d.value!=null?d.value:'?')+' '+(d.unit||''));
   } else if (type === 'alert') {
-    var summary = '\u26A0 ' + (data.participant_id || '?') + ' ' + (data.severity || '?') + ' \u2014 ' + (data.message || '?');
-    addOutbound(ts, 'alert', summary, data);
-    outboundBucket++;
-    alertsFiredCount++;
-    document.getElementById('st-alerts-fired').textContent = alertsFiredCount;
-
+    addFeed('alert', '\u26A0 '+(d.participant_id||'?')+' '+(d.severity||'')+' \u2014 '+(d.message||''));
   } else if (type === 'affect') {
-    var summary = '\uD83E\uDDE0 ' + (data.participant_id || '?') + ' affect inference';
-    addOutbound(ts, 'affect', summary, data);
-    outboundBucket++;
-
+    addFeed('affect', '\uD83E\uDDE0 '+(d.participant_id||'?')+' affect inference');
   } else if (type === 'system') {
-    var summary = '\u2699 ' + (msg.event || 'system') + ': ' + JSON.stringify(data).slice(0, 80);
-    addOutbound(ts, 'system', summary, data);
+    addFeed('system', (msg.event||'system')+': '+JSON.stringify(d).slice(0,80));
   }
-
-  updateStreamCounts();
 }
 
-// ── Stream message buffers ────────────────────────────────────
-var MAX_LOG = 300;
-
-function addInbound(ts, metricType, summary, data) {
-  inboundMessages.unshift({ ts: ts, type: metricType, summary: summary, data: data });
-  if (inboundMessages.length > MAX_LOG) inboundMessages.pop();
-  addUnified(metricType, 'inbound', summary, data);
-  renderInboundLog();
+function addFeed(type, summary) {
+  feedMessages.unshift({ ts: nowTime(), type: type, summary: summary });
+  if (feedMessages.length > MAX_FEED) feedMessages.length = MAX_FEED;
+  renderFeed();
 }
 
-function addOutbound(ts, msgType, summary, data) {
-  outboundMessages.unshift({ ts: ts, type: msgType, summary: summary, data: data });
-  if (outboundMessages.length > MAX_LOG) outboundMessages.pop();
-  addUnified(msgType, 'outbound', summary, data);
-  renderOutboundLog();
+function renderFeed() {
+  var el = document.getElementById('live-feed');
+  document.getElementById('feed-count').textContent = feedMessages.length + ' events';
+  var tagColors = {
+    heart_rate:'#e17055', steps:'#00b894', sleep:'#6c5ce7', spo2:'#74b9ff', hrv:'#fdcb6e',
+    calories:'#fd79a8', alert:'#fdcb6e', affect:'#a29bfe', system:'#8b8fa3', reading:'#00cec9'
+  };
+  el.innerHTML = feedMessages.slice(0,100).map(function(m) {
+    var c = tagColors[m.type] || 'var(--text2)';
+    return '<div class="feed-entry"><span class="ts">'+m.ts+'</span><span class="tag" style="color:'+c+'">'+m.type+'</span><span class="msg">'+esc(m.summary)+'</span></div>';
+  }).join('') || '<div class="feed-entry"><span class="ts">--</span><span class="msg" style="color:var(--text3)">No events yet.</span></div>';
 }
 
-function addUnified(msgType, direction, summary, data) {
-  allMessages.unshift({ ts: nowTime(), type: msgType, direction: direction, summary: summary, data: data });
-  if (allMessages.length > MAX_LOG * 2) allMessages.length = MAX_LOG;
-  document.getElementById('log-total').textContent = allMessages.length + ' events';
-  renderUnifiedLog();
-}
-
-function updateStreamCounts() {
-  document.getElementById('inbound-count').textContent = inboundMessages.length + ' messages';
-  document.getElementById('outbound-count').textContent = outboundMessages.length + ' messages';
-}
-
-// ── Renderers ─────────────────────────────────────────────────
-function renderInboundLog() {
-  var el = document.getElementById('inbound-log');
-  var html = inboundMessages.slice(0, 100).map(function(m) {
-    return '<div class="stream-entry">' +
-      '<span class="ts">' + m.ts + '</span>' +
-      '<span class="tag tag-' + m.type + '">' + m.type + '</span>' +
-      '<span class="msg">' + escHtml(m.summary) + '</span>' +
-      '</div>';
-  }).join('');
-  el.innerHTML = html || '<div class="stream-entry"><span class="ts">--</span><span class="msg" style="color:var(--text3)">Waiting for Fitbit data\u2026</span></div>';
-}
-
-function renderOutboundLog() {
-  var el = document.getElementById('outbound-log');
-  var html = outboundMessages.slice(0, 100).map(function(m) {
-    return '<div class="stream-entry">' +
-      '<span class="ts">' + m.ts + '</span>' +
-      '<span class="tag tag-' + m.type + '">' + m.type + '</span>' +
-      '<span class="msg">' + escHtml(m.summary) + '</span>' +
-      '</div>';
-  }).join('');
-  el.innerHTML = html || '<div class="stream-entry"><span class="ts">--</span><span class="msg" style="color:var(--text3)">Waiting for broadcasts\u2026</span></div>';
-}
-
-function renderUnifiedLog() {
-  var el = document.getElementById('unified-log');
-  var filtered = activeFilter === 'all'
-    ? allMessages
-    : allMessages.filter(function(m) { return m.type === activeFilter || m.direction === activeFilter; });
-
-  var html = filtered.slice(0, 150).map(function(m) {
-    var dirBadge = m.direction === 'inbound'
-      ? '<span class="badge badge-inbound" style="font-size:.62rem">IN</span>'
-      : '<span class="badge badge-outbound" style="font-size:.62rem">OUT</span>';
-    return '<div class="stream-entry">' +
-      '<span class="ts">' + m.ts + '</span>' +
-      dirBadge +
-      '<span class="tag tag-' + m.type + '">' + m.type + '</span>' +
-      '<span class="msg">' + escHtml(m.summary || '') + '</span>' +
-      '</div>';
-  }).join('');
-  el.innerHTML = html || '<div class="stream-entry"><span class="ts">--</span><span class="msg" style="color:var(--text3)">No events match filter.</span></div>';
-}
-
-// ── Throughput chart (Canvas) ─────────────────────────────────
-function drawThroughputChart() {
-  var canvas = document.getElementById('throughput-chart');
-  if (!canvas) return;
-  var dpr = window.devicePixelRatio || 1;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.offsetWidth;
-  var h = canvas.offsetHeight;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,.06)';
-  ctx.lineWidth = 1;
-  for (var i = 0; i < 5; i++) {
-    var gy = (h / 5) * i;
-    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-  }
-
-  var maxVal = Math.max(3, Math.max.apply(null, inboundRates), Math.max.apply(null, outboundRates)) * 1.2;
-  var dx = w / (CHART_LEN - 1);
-
-  function drawLine(data, color) {
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    for (var j = 0; j < CHART_LEN; j++) {
-      var x = j * dx;
-      var y = h - (data[j] / maxVal) * (h - 10);
-      if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    // Fill area
-    ctx.lineTo((CHART_LEN - 1) * dx, h);
-    ctx.lineTo(0, h);
-    ctx.closePath();
-    var parts = color.match(/\d+/g);
-    ctx.fillStyle = 'rgba(' + parts[0] + ',' + parts[1] + ',' + parts[2] + ',.08)';
-    ctx.fill();
-  }
-
-  drawLine(inboundRates, 'rgb(0,206,201)');
-  drawLine(outboundRates, 'rgb(253,121,168)');
-}
-
-// Tick every second: shift chart data
-setInterval(function() {
-  inboundRates.push(inboundBucket);
-  inboundRates.shift();
-  outboundRates.push(outboundBucket);
-  outboundRates.shift();
-  inboundBucket = 0;
-  outboundBucket = 0;
-  drawThroughputChart();
-}, 1000);
-
-// ── Poll stream stats from server ─────────────────────────────
-async function pollStreamStats() {
+// ── Overview ──────────────────────────────────
+async function refreshOverview() {
   try {
-    var data = await api('GET', '/admin/api/stream-stats');
+    var stats = await apiCall('GET', '/api/stats');
+    document.getElementById('ov-readings').textContent = stats.total_readings.toLocaleString();
+    document.getElementById('ov-alerts').textContent = stats.total_alerts.toLocaleString();
+    document.getElementById('ov-participants').textContent = (stats.participants||[]).length;
+    document.getElementById('ov-alert-count').textContent = stats.recent_alerts.length + ' recent';
 
-    document.getElementById('st-inbound').textContent = ((data.throughput && data.throughput.total_inbound) || 0).toLocaleString();
-    document.getElementById('st-outbound').textContent = ((data.throughput && data.throughput.total_outbound) || 0).toLocaleString();
-    document.getElementById('st-inbound-rate').textContent = ((data.throughput && data.throughput.inbound_rate_per_sec) || 0).toFixed(1);
-    document.getElementById('st-outbound-rate').textContent = ((data.throughput && data.throughput.outbound_rate_per_sec) || 0).toFixed(1);
-    document.getElementById('st-clients').textContent = (data.connections && data.connections.total) || 0;
+    if (stats.participants && stats.participants.length) {
+      document.getElementById('participants-list').innerHTML = stats.participants.map(function(p) {
+        return '<span class="badge badge-info" style="margin:.15rem;cursor:pointer" onclick="document.getElementById(\'eval-participant\').value=\''+p+'\'">'+p+'</span>';
+      }).join('');
+    } else {
+      document.getElementById('participants-list').textContent = 'No participants found yet.';
+    }
 
-    // Channel grid
-    var channels = (data.connections && data.connections.channels) || {};
-    var grid = document.getElementById('channel-grid');
-    var allCh = ['all', 'readings', 'alerts', 'affect', 'system'];
-    var gridHtml = allCh.map(function(ch) {
-      return '<div class="conn-chip"><div class="ch-name">' + ch + '</div><div class="ch-count">' + (channels[ch] || 0) + '</div></div>';
+    var alertsHtml = stats.recent_alerts.map(function(a) {
+      return '<tr><td>'+fmtDate(a.timestamp)+'</td><td>'+a.participant_id+'</td><td>'+a.metric+'</td><td>'+a.value+'</td><td>'+sevBadge(a.severity)+'</td><td style="max-width:240px;overflow:hidden;text-overflow:ellipsis">'+a.message+'</td></tr>';
     }).join('');
-    // extra channels
-    Object.keys(channels).forEach(function(ch) {
-      if (allCh.indexOf(ch) === -1) {
-        gridHtml += '<div class="conn-chip"><div class="ch-name">' + ch + '</div><div class="ch-count">' + channels[ch] + '</div></div>';
-      }
-    });
-    grid.innerHTML = gridHtml;
-    document.getElementById('conn-update-time').textContent = 'Updated ' + nowTime();
+    document.getElementById('ov-alerts-body').innerHTML = alertsHtml || '<tr><td colspan="6" style="color:var(--text3)">No recent alerts.</td></tr>';
+  } catch(e) {}
 
-    // Seed unified log from server history if empty
-    if (allMessages.length === 0 && data.recent_messages && data.recent_messages.length) {
-      var reversed = data.recent_messages.slice().reverse();
-      reversed.forEach(function(m) {
-        addUnified(m.type, m.direction, m.summary);
-      });
-    }
-  } catch(e) { /* silent */ }
-}
-
-// ── Dashboard ─────────────────────────────────────────────────
-async function refreshDashboard() {
   try {
-    var health = await api('GET', '/health');
-    document.getElementById('stat-pipeline').textContent = health.pipeline_pending;
-    if (!wsConnected) {
-      document.getElementById('status-text').textContent = 'Online (polling)';
-    }
+    var rules = await apiCall('GET', '/rules');
+    document.getElementById('ov-rules').textContent = rules.length;
+  } catch(e) {}
+
+  try {
+    var health = await apiCall('GET', '/health');
+    if (!wsConnected) document.getElementById('status-text').textContent = 'Online (polling)';
   } catch(e) {
     document.getElementById('status-text').textContent = 'Offline';
     document.getElementById('status-dot').className = 'dot';
   }
-
-  try {
-    var rules = await api('GET', '/rules');
-    document.getElementById('stat-rules').textContent = rules.length;
-  } catch(e) {}
-
-  try {
-    var stats = await api('GET', '/api/stats');
-    document.getElementById('stat-readings').textContent = stats.total_readings.toLocaleString();
-    document.getElementById('stat-alerts').textContent = stats.total_alerts.toLocaleString();
-    var alertsHtml = stats.recent_alerts.map(function(a) {
-      return '<tr><td>' + fmtDate(a.timestamp) + '</td><td>' + a.participant_id + '</td><td>' + a.metric + '</td><td>' + a.value + '</td><td>' + severityBadge(a.severity) + '</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis">' + a.message + '</td></tr>';
-    }).join('');
-    document.getElementById('dash-alerts-body').innerHTML = alertsHtml || '<tr><td colspan="6" style="color:var(--text3)">No recent alerts.</td></tr>';
-
-    if (stats.participants && stats.participants.length) {
-      document.getElementById('participants-list').innerHTML = stats.participants.map(function(p) {
-        return '<span class="badge badge-info" style="margin:.2rem;cursor:pointer" onclick="document.getElementById(\'eval-participant\').value=\'' + p + '\'">' + p + '</span>';
-      }).join('');
-    }
-  } catch(e) {}
-
-  // System info
-  try {
-    var info = await api('GET', '/system/info');
-    document.getElementById('system-info').innerHTML =
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem">' +
-        '<div>Pipeline: ' + (info.pipeline && info.pipeline.running ? '<span style="color:var(--success)">Running</span>' : '<span style="color:var(--danger)">Stopped</span>') + ' (' + ((info.pipeline && info.pipeline.pending) || 0) + ' pending)</div>' +
-        '<div>Agent: ' + (info.agent && info.agent.ready ? '<span style="color:var(--success)">Ready</span>' : '<span style="color:var(--text3)">Not ready</span>') + '</div>' +
-        '<div>Rules: ' + ((info.rule_engine && info.rule_engine.rule_count) || 0) + ' active</div>' +
-        '<div>Scheduler: ' + (info.scheduler && info.scheduler.running ? '<span style="color:var(--success)">Running</span>' : '<span style="color:var(--text3)">Off</span>') + ' (' + ((info.scheduler && info.scheduler.interval_minutes) || '?') + 'm interval)</div>' +
-        '<div>Affect: ' + (info.affect_pipeline && info.affect_pipeline.ready ? '<span style="color:var(--success)">Ready</span>' : '<span style="color:var(--text3)">Not ready</span>') + '</div>' +
-        '<div>WS Clients: ' + ((info.websocket && info.websocket.connected_clients) || 0) + '</div>' +
-      '</div>';
-  } catch(e) {}
 }
 
-// ── Readings ──────────────────────────────────────────────────
-async function loadReadings() {
-  var pid = document.getElementById('rd-participant').value;
-  var metric = document.getElementById('rd-metric').value;
-  var limit = document.getElementById('rd-limit').value;
+async function refreshComponents() {
   try {
-    var data = await api('GET', '/readings/' + pid + '?metric=' + metric + '&limit=' + limit);
-    if (!data.length) {
-      document.getElementById('readings-body').innerHTML = '<tr><td colspan="4" style="color:var(--text3)">No readings found.</td></tr>';
-      document.getElementById('readings-stats').textContent = '';
-      return;
-    }
-    var vals = data.map(function(r) { return r.value; });
-    var sum = vals.reduce(function(a, b) { return a + b; }, 0);
-    var mean = (sum / vals.length).toFixed(1);
-    document.getElementById('readings-stats').textContent = data.length + ' rows \u2014 Mean: ' + mean + ' | Min: ' + Math.min.apply(null, vals).toFixed(1) + ' | Max: ' + Math.max.apply(null, vals).toFixed(1);
-    document.getElementById('readings-body').innerHTML = data.map(function(r) {
-      return '<tr><td>' + fmtDate(r.timestamp) + '</td><td><strong>' + r.value + '</strong></td><td>' + r.unit + '</td><td>' + r.device_type + '</td></tr>';
-    }).join('');
-  } catch(e) {
-    document.getElementById('readings-body').innerHTML = '<tr><td colspan="4" style="color:var(--danger)">' + e.message + '</td></tr>';
-  }
-}
-
-// ── Alerts ────────────────────────────────────────────────────
-async function loadAlerts() {
-  var pid = document.getElementById('al-participant').value;
-  try {
-    var data = await api('GET', '/alerts/' + pid);
-    document.getElementById('alerts-body').innerHTML = data.length
-      ? data.map(function(a) { return '<tr><td>' + fmtDate(a.timestamp) + '</td><td>' + severityBadge(a.severity) + '</td><td>' + a.metric + '</td><td>' + a.value + '</td><td>' + a.message + '</td></tr>'; }).join('')
-      : '<tr><td colspan="5" style="color:var(--text3)">No alerts.</td></tr>';
-  } catch(e) {
-    document.getElementById('alerts-body').innerHTML = '<tr><td colspan="5" style="color:var(--danger)">' + e.message + '</td></tr>';
-  }
-}
-
-// ── Rules ─────────────────────────────────────────────────────
-async function loadRules() {
-  try {
-    var data = await api('GET', '/rules');
-    document.getElementById('rules-body').innerHTML = data.map(function(r) {
-      return '<tr><td style="font-family:monospace;font-size:.72rem">' + r.rule_id.slice(0, 8) + '\u2026</td><td>' + r.metric_type + '</td>' +
-        '<td><code style="background:var(--surface2);padding:.1rem .4rem;border-radius:4px">' + r.condition + '</code></td>' +
-        '<td>' + severityBadge(r.severity) + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">' + r.message_template + '</td>' +
-        '<td><button class="btn btn-danger btn-sm" onclick="deleteRule(\'' + r.rule_id + '\')">\u2715</button></td></tr>';
+    var info = await apiCall('GET', '/system/info');
+    var items = [
+      { name: 'Pipeline', ok: info.pipeline && info.pipeline.running, detail: (info.pipeline&&info.pipeline.pending||0)+' pending' },
+      { name: 'Agent', ok: info.agent && info.agent.ready, detail: '' },
+      { name: 'Rule Engine', ok: info.rule_engine && info.rule_engine.ready, detail: (info.rule_engine&&info.rule_engine.rule_count||0)+' rules' },
+      { name: 'Affect', ok: info.affect_pipeline && info.affect_pipeline.ready, detail: '' },
+      { name: 'Scheduler', ok: info.scheduler && info.scheduler.running, detail: (info.scheduler&&info.scheduler.interval_minutes||'?')+'m' },
+      { name: 'WebSocket', ok: true, detail: (info.websocket&&info.websocket.connected_clients||0)+' clients' },
+    ];
+    document.getElementById('ov-components').innerHTML = items.map(function(c) {
+      var color = c.ok ? 'var(--success)' : 'var(--text3)';
+      return '<div class="comp-chip"><span class="comp-dot" style="background:'+color+'"></span><span class="comp-name">'+c.name+'</span><span class="comp-detail">'+c.detail+'</span></div>';
     }).join('');
   } catch(e) {}
 }
-async function addRule() {
-  await api('POST', '/rules', {
-    metric_type: document.getElementById('rule-metric').value,
-    condition: document.getElementById('rule-condition').value,
-    severity: document.getElementById('rule-severity').value,
-    message_template: document.getElementById('rule-message').value,
-  });
-  document.getElementById('rule-condition').value = '';
-  loadRules();
-}
-async function deleteRule(id) { await api('DELETE', '/rules/' + id); loadRules(); }
 
-// ── Ingest ────────────────────────────────────────────────────
-async function ingestData() {
-  try {
-    var res = await api('POST', '/ingest', {
-      participant_id: document.getElementById('ing-participant').value,
-      device_type: document.getElementById('ing-device').value,
-      metric_type: document.getElementById('ing-metric').value,
-      value: parseFloat(document.getElementById('ing-value').value),
-      unit: document.getElementById('ing-unit').value,
-    });
-    document.getElementById('ingest-result').innerHTML = '<span style="color:var(--success)">\u2713 Queued \u2014 ID: ' + res.id + '</span>';
-  } catch(e) {
-    document.getElementById('ingest-result').innerHTML = '<span style="color:var(--danger)">\u2715 ' + e.message + '</span>';
+// ── Sensors & Metrics ─────────────────────────
+function renderSensorGrid() {
+  if (!toolsData) return;
+  var metrics = toolsData.metrics;
+  if (sensorCatFilter !== 'all') {
+    metrics = metrics.filter(function(m) { return METRIC_CATEGORIES[m.key] === sensorCatFilter; });
   }
-}
-async function ingestBatch() {
-  try {
-    var raw = JSON.parse(document.getElementById('ing-batch').value);
-    var res = await api('POST', '/ingest/batch', raw);
-    document.getElementById('batch-result').innerHTML = '<span style="color:var(--success)">\u2713 ' + res.count + ' readings queued</span>';
-  } catch(e) {
-    document.getElementById('batch-result').innerHTML = '<span style="color:var(--danger)">\u2715 ' + e.message + '</span>';
-  }
-}
+  document.getElementById('sensor-count').textContent = metrics.length + ' of ' + toolsData.metrics.length + ' metrics';
 
-// ── Agent ─────────────────────────────────────────────────────
-var chatHist = [];
-async function sendChat() {
-  var input = document.getElementById('chat-input');
-  var q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  chatHist.push({ role: 'user', text: q });
-  renderChat();
-  var box = document.getElementById('chat-messages');
-  box.innerHTML += '\n<em style="color:var(--text3)">Thinking\u2026</em>';
-  box.scrollTop = box.scrollHeight;
-  try {
-    var res = await api('POST', '/analyse', { query: q });
-    chatHist.push({ role: 'agent', text: res.response });
-  } catch(e) {
-    chatHist.push({ role: 'agent', text: '\u26A0\uFE0F Error: ' + e.message });
-  }
-  renderChat();
-}
-function renderChat() {
-  var box = document.getElementById('chat-messages');
-  box.innerHTML = chatHist.map(function(m) {
-    return m.role === 'user'
-      ? '<div style="color:var(--accent-light);margin:.4rem 0"><strong>You:</strong> ' + escHtml(m.text) + '</div>'
-      : '<div style="margin:.4rem 0"><strong>\uD83E\uDD16 Agent:</strong>\n' + escHtml(m.text) + '</div>';
-  }).join('') || '<em style="color:var(--text3)">No messages yet.</em>';
-  box.scrollTop = box.scrollHeight;
+  document.getElementById('sensor-grid').innerHTML = metrics.map(function(m) {
+    var cat = METRIC_CATEGORIES[m.key] || 'body';
+    var color = CAT_COLORS[cat] || 'var(--text3)';
+    var rangeStr = m.normal_range ? m.normal_range[0]+' \u2013 '+m.normal_range[1]+' '+(m.unit||'') : 'N/A';
+    return '<div class="metric-card" style="border-left-color:'+color+'">'+
+      '<div class="mc-header">'+
+        '<span class="mc-label" style="color:'+color+'">'+esc(m.label)+'</span>'+
+        '<span class="mc-key">'+esc(m.key)+'</span>'+
+      '</div>'+
+      '<div class="mc-desc">'+esc(m.description||'No description.')+'</div>'+
+      '<div class="mc-meta">'+
+        '<span><span style="color:var(--text3)">Unit:</span> <span style="color:var(--text)">'+esc(m.unit||'\u2013')+'</span></span>'+
+        '<span><span style="color:var(--text3)">Normal:</span> <span style="color:var(--success)">'+rangeStr+'</span></span>'+
+        '<span><span style="color:var(--text3)">Category:</span> <span style="color:'+color+'">'+cat+'</span></span>'+
+      '</div>'+
+      '<div class="mc-actions">'+
+        '<button class="mc-edit-btn" onclick="openMetricModal(\''+esc(m.key)+'\')">&#x270F;&#xFE0F; Edit</button>'+
+      '</div>'+
+    '</div>';
+  }).join('') || '<div style="color:var(--text3)">No metrics match this filter.</div>';
 }
 
-// ── Data Stream Controls ──────────────────────────────────────
-function onStreamSourceChange() {
-  var source = document.getElementById('stream-source').value;
-  var speedGroup = document.getElementById('stream-speed-group');
-  speedGroup.style.display = source === 'dataset' ? '' : 'none';
-  document.getElementById('stream-participants-hint').style.display = 'none';
-  document.getElementById('stream-result').innerHTML = '';
-}
-
-async function loadLifeSnapsParticipants() {
-  try {
-    var data = await api('GET', '/lifesnaps/participants');
-    var hint = document.getElementById('stream-participants-hint');
-    var list = document.getElementById('stream-participants-list');
-    hint.style.display = 'block';
-    if (data.length) {
-      list.innerHTML = data.slice(0, 30).map(function(p) {
-        return '<span style="cursor:pointer;color:var(--accent-light);margin-right:.4rem" onclick="document.getElementById(\'stream-participant\').value=\'' + p + '\'">' + p + '</span>';
-      }).join('') + (data.length > 30 ? '<em> +' + (data.length - 30) + ' more</em>' : '');
-    } else {
-      list.textContent = 'No participants found (data files may not be loaded yet).';
-    }
-  } catch(e) {
-    document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 Failed to load participants: ' + e.message + '</span>';
-  }
-}
-
-async function startDataStream() {
-  var source = document.getElementById('stream-source').value;
-  var pid = document.getElementById('stream-participant').value.trim();
-  if (!pid) {
-    document.getElementById('stream-result').innerHTML = '<span style="color:var(--warning)">\u26A0 Enter a participant ID first.</span>';
-    return;
-  }
-
-  var btn = document.getElementById('stream-start-btn');
-  btn.disabled = true;
-  btn.textContent = '\u23F3 Starting\u2026';
-  document.getElementById('stream-result').innerHTML = '';
-  document.getElementById('stream-status-label').textContent = 'Starting\u2026';
-
-  try {
-    var result;
-    if (source === 'dataset') {
-      var speed = parseFloat(document.getElementById('stream-speed').value);
-      result = await api('POST', '/lifesnaps/stream/' + pid, { speed: speed });
-      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Dataset streaming (' + speed + 'x)';
-      document.getElementById('stream-result').innerHTML =
-        '<span style="color:var(--success)">\u2713 LifeSnaps stream started for <strong>' + pid + '</strong> at ' + speed + 'x speed</span>';
-    } else {
-      result = await api('POST', '/sync/stream/' + pid, {});
-      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Live Fitbit streaming';
-      document.getElementById('stream-result').innerHTML =
-        '<span style="color:var(--success)">\u2713 Live Fitbit stream started for <strong>' + pid + '</strong></span>';
-    }
-    addUnified('system', 'inbound', 'Stream started: ' + source + ' \u2014 ' + pid);
-  } catch(e) {
-    document.getElementById('stream-status-label').textContent = '\uD83D\uDD34 Error';
-    document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 ' + escHtml(e.message) + '</span>';
-  }
-
-  btn.disabled = false;
-  btn.textContent = '\u25B6 Start Stream';
-}
-
-// ── Participant Evaluation ────────────────────────────────────
-async function evaluateParticipant() {
-  var box = document.getElementById('eval-result');
-  box.style.display = 'block';
-  box.textContent = 'Evaluating\u2026 (may take a moment)';
-  try {
-    var pid = document.getElementById('eval-participant').value;
-    var metric = document.getElementById('eval-metric').value;
-    var hours = document.getElementById('eval-hours').value;
-    var res = await api('GET', '/evaluate/' + pid + '?metric=' + metric + '&hours=' + hours);
-    box.textContent = res.evaluation;
-  } catch(e) {
-    box.textContent = '\u26A0\uFE0F Error: ' + e.message;
-  }
-}
-
-// ── Tools & APIs page ─────────────────────────────────────────
-var toolsData = null;
-var apiTagFilter = 'all';
-
+// ── Tool Inventory & Testing ──────────────────
 async function loadToolsInventory() {
   try {
-    toolsData = await api('GET', '/admin/api/tools');
-    renderToolsPage();
+    toolsData = await apiCall('GET', '/admin/api/tools');
+    document.getElementById('ov-tools').textContent = toolsData.agent_tools.length;
+    document.getElementById('tools-count').textContent = toolsData.agent_tools.length;
+    document.getElementById('api-count').textContent = toolsData.api_routes.length;
+    document.getElementById('comp-count').textContent = toolsData.components.length;
+    document.getElementById('metric-count').textContent = toolsData.metrics.length;
+
+    populateMetricSelects();
+    renderSensorGrid();
+    renderAgentTools();
+    renderApiTable();
+    renderArchDiagram();
   } catch(e) {
-    document.getElementById('tools-agent-list').innerHTML = '<span style="color:var(--danger)">Failed to load: ' + e.message + '</span>';
+    document.getElementById('tools-list').innerHTML = '<span style="color:var(--danger)">Failed: '+e.message+'</span>';
   }
 }
 
-function renderToolsPage() {
+function renderAgentTools() {
   if (!toolsData) return;
-  var d = toolsData;
-
-  // Summary stats
-  document.getElementById('tools-agent-count').textContent = d.agent_tools.length;
-  document.getElementById('tools-api-count').textContent = d.api_routes.length;
-  document.getElementById('tools-comp-count').textContent = d.components.length;
-  document.getElementById('tools-metric-count').textContent = d.metrics.length;
-
-  // ── Agent Tools ──────────────────────────────────────────
-  var agentHtml = d.agent_tools.map(function(t) {
-    var params = Object.keys(t.parameters || {}).map(function(p) {
+  var html = toolsData.agent_tools.map(function(t) {
+    var params = Object.keys(t.parameters||{}).map(function(p) {
       var info = t.parameters[p];
-      return '<span style="display:inline-block;margin:.15rem .25rem;padding:.15rem .5rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:.72rem">' +
-        '<span style="color:var(--accent-light)">' + escHtml(p) + '</span>' +
-        '<span style="color:var(--text3);margin-left:.3rem">' + escHtml(info.type) + '</span>' +
-        (info.required ? '<span style="color:var(--danger);margin-left:.2rem">*</span>' : '') +
-        '</span>';
+      return '<span class="tc-param"><span class="pname">'+esc(p)+'</span><span class="ptype">'+esc(info.type)+'</span>'+(info.required?'<span class="preq">*</span>':'')+'</span>';
     }).join('');
 
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem;margin-bottom:.65rem;border-left:3px solid var(--accent)">' +
-      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem">' +
-        '<span style="font-size:1.05rem">&#x1F527;</span>' +
-        '<span style="font-weight:700;color:var(--accent-light);font-family:monospace;font-size:.9rem">' + escHtml(t.name) + '</span>' +
-      '</div>' +
-      '<div style="font-size:.8rem;color:var(--text2);margin-bottom:.5rem;line-height:1.5">' + escHtml(t.description) + '</div>' +
-      (params ? '<div style="margin-top:.35rem"><span style="font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Parameters</span><div style="margin-top:.2rem">' + params + '</div></div>' : '') +
+    return '<div class="tool-card">'+
+      '<div class="tc-header">'+
+        '<span style="font-size:1rem">&#x1F527;</span>'+
+        '<span class="tc-name">'+esc(t.name)+'</span>'+
+        '<button class="btn btn-test btn-sm" style="margin-left:auto" onclick="openToolTestModal(\''+esc(t.name)+'\')">&#x25B6; Test</button>'+
+      '</div>'+
+      '<div class="tc-desc">'+esc(t.description)+'</div>'+
+      (params ? '<div class="tc-params">'+params+'</div>' : '')+
     '</div>';
   }).join('');
-  document.getElementById('tools-agent-list').innerHTML = agentHtml || '<span style="color:var(--text3)">No agent tools registered.</span>';
+  document.getElementById('tools-list').innerHTML = html || '<span style="color:var(--text3)">No tools registered.</span>';
+}
 
-  // ── System Components ────────────────────────────────────
-  var categoryIcons = { streaming: '&#x1F4E1;', intelligence: '&#x1F9E0;', monitoring: '&#x1F6E1;', collection: '&#x1F4E5;' };
-  var categoryColors = { streaming: 'var(--inbound)', intelligence: 'var(--accent-light)', monitoring: 'var(--warning)', collection: 'var(--success)' };
-
-  var toggleable = ['SchedulerService'];
-  var compHtml = d.components.map(function(c) {
-    var statusColor = c.status === 'running' || c.status === 'ready' || c.status === 'active' ? 'var(--success)' : 'var(--text3)';
-    var statusLabel = c.status.replace('_', ' ');
-    var icon = categoryIcons[c.category] || '&#x2699;';
-    var borderColor = categoryColors[c.category] || 'var(--border)';
-    var details = '';
-    if (c.details) {
-      var detailParts = Object.keys(c.details).map(function(k) {
-        var v = c.details[k];
-        if (typeof v === 'object') v = JSON.stringify(v);
-        return '<span><span style="color:var(--text3)">' + k + ':</span> <span style="color:var(--text)">' + v + '</span></span>';
-      });
-      if (detailParts.length) details = '<div style="font-size:.72rem;margin-top:.4rem;display:flex;gap:.75rem;flex-wrap:wrap">' + detailParts.join('') + '</div>';
-    }
-    var toggleBtn = '';
-    if (toggleable.indexOf(c.name) !== -1) {
-      var isOn = c.status === 'running' || c.status === 'active';
-      toggleBtn = '<button class="toggle-btn' + (isOn ? ' running' : '') + '" onclick="toggleComponent(\'' + escHtml(c.name) + '\')">' +
-        (isOn ? '&#x23F8; Stop' : '&#x25B6; Start') + '</button>';
-    }
-
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;border-left:3px solid ' + borderColor + '">' +
-      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">' +
-        '<span style="font-size:1rem">' + icon + '</span>' +
-        '<span style="font-weight:700;font-size:.88rem">' + escHtml(c.name) + '</span>' +
-        '<span style="margin-left:auto;display:flex;align-items:center;gap:.3rem">' +
-          '<span style="width:7px;height:7px;border-radius:50%;background:' + statusColor + ';display:inline-block"></span>' +
-          '<span style="font-size:.72rem;color:' + statusColor + ';text-transform:uppercase;letter-spacing:.04em">' + statusLabel + '</span>' +
-        '</span>' +
-      '</div>' +
-      '<div style="font-size:.78rem;color:var(--text2);line-height:1.4">' + escHtml(c.description) + '</div>' +
-      details +
-      toggleBtn +
-    '</div>';
-  }).join('');
-  document.getElementById('tools-components-grid').innerHTML = compHtml;
-
-  // ── API Routes ───────────────────────────────────────────
+function renderApiTable() {
+  if (!toolsData) return;
   var tagSet = {};
-  d.api_routes.forEach(function(r) {
-    (r.tags || []).forEach(function(t) { tagSet[t] = true; });
-  });
+  toolsData.api_routes.forEach(function(r) { (r.tags||[]).forEach(function(t) { tagSet[t]=true; }); });
   var tags = ['all'].concat(Object.keys(tagSet).sort());
-  var filterHtml = tags.map(function(t) {
-    return '<span class="filter-chip' + (t === apiTagFilter ? ' active' : '') + '" data-api-tag="' + t + '">' + t + '</span>';
+  document.getElementById('api-filter-bar').innerHTML = tags.map(function(t) {
+    return '<span class="filter-chip'+(t===apiTagFilter?' active':'')+'" data-api-tag="'+t+'">'+t+'</span>';
   }).join('');
-  document.getElementById('api-filter-bar').innerHTML = filterHtml;
   document.querySelectorAll('[data-api-tag]').forEach(function(chip) {
     chip.addEventListener('click', function() {
       document.querySelectorAll('[data-api-tag]').forEach(function(c) { c.classList.remove('active'); });
       chip.classList.add('active');
       apiTagFilter = chip.dataset.apiTag;
-      renderApiTable();
+      renderApiRows();
     });
   });
-  renderApiTable();
-
-  // ── Metrics Reference ────────────────────────────────────
-  var metricColors = {
-    heart_rate: '#e17055', resting_heart_rate: '#e17055', hrv: '#fdcb6e',
-    stress: '#fd79a8', skin_temperature: '#00cec9', breathing_rate: '#74b9ff',
-    spo2: '#74b9ff', sleep: '#6c5ce7', sleep_efficiency: '#6c5ce7',
-    steps: '#00b894', calories: '#fd79a8', distance: '#00b894',
-    vo2_max: '#a29bfe', floors: '#00b894'
-  };
-
-  var metricsHtml = d.metrics.map(function(m) {
-    var color = metricColors[m.key] || 'var(--text2)';
-    var rangeStr = m.normal_range ? m.normal_range[0] + ' \u2013 ' + m.normal_range[1] + ' ' + (m.unit || '') : 'N/A';
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;border-left:3px solid ' + color + '">' +
-      '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
-        '<span style="font-weight:700;font-size:.85rem;color:' + color + '">' + escHtml(m.label) + '</span>' +
-        '<span style="margin-left:auto;display:flex;align-items:center;gap:.3rem">' +
-          '<button class="edit-btn" onclick="openMetricModal(\'' + escHtml(m.key) + '\')">&#x270F;&#xFE0F; Edit</button>' +
-          '<span style="font-size:.72rem;color:var(--text3);font-family:monospace">' + escHtml(m.key) + '</span>' +
-        '</span>' +
-      '</div>' +
-      '<div style="font-size:.75rem;color:var(--text2);margin-bottom:.35rem;line-height:1.4">' + escHtml(m.description || '') + '</div>' +
-      '<div style="display:flex;gap:1rem;font-size:.72rem">' +
-        '<span><span style="color:var(--text3)">Unit:</span> <span style="color:var(--text)">' + escHtml(m.unit || '\u2013') + '</span></span>' +
-        '<span><span style="color:var(--text3)">Normal:</span> <span style="color:var(--success)">' + rangeStr + '</span></span>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('tools-metrics-grid').innerHTML = metricsHtml;
-
-  // ── Architecture Diagram ─────────────────────────────────
-  renderArchDiagram();
+  renderApiRows();
 }
 
-function renderApiTable() {
+function renderApiRows() {
   if (!toolsData) return;
-  var filtered = apiTagFilter === 'all'
-    ? toolsData.api_routes
-    : toolsData.api_routes.filter(function(r) { return (r.tags || []).indexOf(apiTagFilter) !== -1; });
-
-  var methodColors = { GET: 'var(--success)', POST: 'var(--accent-light)', DELETE: 'var(--danger)', PUT: 'var(--warning)', PATCH: 'var(--warning)' };
-
-  var html = filtered.map(function(r) {
-    var methods = (r.methods || []).map(function(m) {
-      var c = methodColors[m] || 'var(--text2)';
-      return '<span style="display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.68rem;font-weight:700;font-family:monospace;background:' + c + '22;color:' + c + ';margin-right:.2rem">' + m + '</span>';
+  var filtered = apiTagFilter==='all' ? toolsData.api_routes : toolsData.api_routes.filter(function(r) { return (r.tags||[]).indexOf(apiTagFilter)!==-1; });
+  var mc = { GET:'var(--success)', POST:'var(--accent-light)', DELETE:'var(--danger)', PUT:'var(--warning)', PATCH:'var(--warning)' };
+  document.getElementById('api-body').innerHTML = filtered.map(function(r) {
+    var methods = (r.methods||[]).map(function(m) {
+      var c = mc[m]||'var(--text2)'; return '<span style="display:inline-block;padding:.08rem .35rem;border-radius:4px;font-size:.66rem;font-weight:700;font-family:monospace;background:'+c+'22;color:'+c+';margin-right:.15rem">'+m+'</span>';
     }).join('');
-    var desc = (r.summary || '').split('\n')[0].trim();
-    if (desc.length > 100) desc = desc.slice(0, 100) + '\u2026';
-    return '<tr>' +
-      '<td>' + methods + '</td>' +
-      '<td style="font-family:monospace;font-size:.8rem;color:var(--inbound)">' + escHtml(r.path) + '</td>' +
-      '<td style="font-size:.8rem">' + escHtml(r.name || '') + '</td>' +
-      '<td style="font-size:.78rem;color:var(--text2);max-width:300px;overflow:hidden;text-overflow:ellipsis">' + escHtml(desc) + '</td>' +
-    '</tr>';
-  }).join('');
-  document.getElementById('tools-api-body').innerHTML = html || '<tr><td colspan="4" style="color:var(--text3)">No routes match filter.</td></tr>';
+    var desc = (r.summary||'').split('\n')[0].trim();
+    if (desc.length>90) desc = desc.slice(0,90)+'\u2026';
+    return '<tr><td>'+methods+'</td><td style="font-family:monospace;font-size:.78rem;color:var(--info)">'+esc(r.path)+'</td><td style="font-size:.78rem">'+esc(r.name||'')+'</td><td style="font-size:.76rem;color:var(--text2);max-width:280px;overflow:hidden;text-overflow:ellipsis">'+esc(desc)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="color:var(--text3)">No routes match.</td></tr>';
 }
 
-// ── Metric Edit Modal ─────────────────────────────────────────
+// ── Tool Test Modal ───────────────────────────
+var currentTestTool = null;
+
+function openToolTestModal(toolName) {
+  if (!toolsData) return;
+  var t = toolsData.agent_tools.find(function(x) { return x.name === toolName; });
+  if (!t) return;
+  currentTestTool = t;
+  document.getElementById('tt-name').textContent = t.name;
+  document.getElementById('tt-desc').textContent = t.description;
+  document.getElementById('tt-result').style.display = 'none';
+  document.getElementById('tt-output').style.color = '';
+
+  var paramKeys = Object.keys(t.parameters || {});
+  if (paramKeys.length) {
+    var formHtml = paramKeys.map(function(p) {
+      var info = t.parameters[p];
+      return '<div class="form-group" style="margin-bottom:.5rem">'+
+        '<label>'+esc(p)+' <span style="color:var(--text3);font-size:.68rem">('+esc(info.type)+')</span>'+(info.required?' <span style="color:var(--danger)">*</span>':'')+'</label>'+
+        '<input id="tt-p-'+esc(p)+'" placeholder="'+(info.default && info.default!=='None' ? esc(info.default) : '')+'" data-param-name="'+esc(p)+'">'+
+      '</div>';
+    }).join('');
+    document.getElementById('tt-params-form').innerHTML = formHtml;
+  } else {
+    document.getElementById('tt-params-form').innerHTML = '<div style="font-size:.8rem;color:var(--text3)">This tool takes no parameters.</div>';
+  }
+
+  document.getElementById('tool-test-modal').classList.add('open');
+}
+
+function closeToolTestModal() {
+  document.getElementById('tool-test-modal').classList.remove('open');
+  currentTestTool = null;
+}
+
+async function runToolTest() {
+  if (!currentTestTool) return;
+  var params = {};
+  document.querySelectorAll('#tt-params-form input[data-param-name]').forEach(function(inp) {
+    var v = inp.value.trim();
+    if (v !== '') {
+      if (!isNaN(v) && v !== '') params[inp.dataset.paramName] = parseFloat(v);
+      else {
+        try { params[inp.dataset.paramName] = JSON.parse(v); } catch(e) { params[inp.dataset.paramName] = v; }
+      }
+    }
+  });
+
+  var btn = document.getElementById('tt-run-btn');
+  btn.disabled = true;
+  btn.textContent = '\u23F3 Running\u2026';
+  document.getElementById('tt-result').style.display = 'block';
+  document.getElementById('tt-output').style.color = '';
+  document.getElementById('tt-output').textContent = 'Executing ' + currentTestTool.name + '(\u2026)\nPlease wait\u2026';
+
+  try {
+    var res = await apiCall('POST', '/admin/api/tools/test', { tool_name: currentTestTool.name, parameters: params });
+    var output = typeof res.result === 'string' ? res.result : JSON.stringify(res.result, null, 2);
+    document.getElementById('tt-output').textContent = output;
+  } catch(e) {
+    document.getElementById('tt-output').textContent = '\u2717 Error: ' + e.message;
+    document.getElementById('tt-output').style.color = 'var(--danger)';
+  }
+  btn.disabled = false;
+  btn.textContent = '\u25B6 Run Tool';
+}
+
+// ── Metric Edit Modal ─────────────────────────
 function openMetricModal(key) {
   if (!toolsData) return;
   var m = toolsData.metrics.find(function(x) { return x.key === key; });
@@ -1450,146 +1019,219 @@ function openMetricModal(key) {
   document.getElementById('metric-edit-modal').classList.add('open');
 }
 
-function closeMetricModal() {
-  document.getElementById('metric-edit-modal').classList.remove('open');
-}
+function closeMetricModal() { document.getElementById('metric-edit-modal').classList.remove('open'); }
 
 async function saveMetricEdit() {
   var key = document.getElementById('me-key').value;
-  var body = {
-    label: document.getElementById('me-label').value,
-    unit: document.getElementById('me-unit').value,
-    description: document.getElementById('me-description').value,
-  };
+  var body = { label: document.getElementById('me-label').value, unit: document.getElementById('me-unit').value, description: document.getElementById('me-description').value };
   var lo = document.getElementById('me-range-low').value;
   var hi = document.getElementById('me-range-high').value;
-  if (lo !== '' && hi !== '') {
-    body.normal_range = [parseFloat(lo), parseFloat(hi)];
-  } else {
-    body.normal_range = null;
-  }
+  body.normal_range = (lo !== '' && hi !== '') ? [parseFloat(lo), parseFloat(hi)] : null;
   try {
-    await api('PUT', '/admin/api/tools/metrics/' + key, body);
-    document.getElementById('me-result').innerHTML = '<span style="color:var(--success)">&#x2713; Saved</span>';
-    // Refresh data
+    await apiCall('PUT', '/admin/api/tools/metrics/' + key, body);
+    document.getElementById('me-result').innerHTML = '<span style="color:var(--success)">\u2713 Saved</span>';
     await loadToolsInventory();
-    setTimeout(closeMetricModal, 600);
+    setTimeout(closeMetricModal, 500);
   } catch(e) {
-    document.getElementById('me-result').innerHTML = '<span style="color:var(--danger)">&#x2717; ' + e.message + '</span>';
+    document.getElementById('me-result').innerHTML = '<span style="color:var(--danger)">\u2717 ' + e.message + '</span>';
   }
 }
 
-// ── Component Toggle ──────────────────────────────────────────
-async function toggleComponent(name) {
+// ── Readings ──────────────────────────────────
+async function loadReadings() {
+  var pid = document.getElementById('rd-participant').value;
+  var metric = document.getElementById('rd-metric').value;
+  var limit = document.getElementById('rd-limit').value;
   try {
-    var res = await api('PUT', '/admin/api/tools/components/' + name + '/toggle');
-    await loadToolsInventory();
-  } catch(e) {
-    alert('Toggle failed: ' + e.message);
-  }
+    var data = await apiCall('GET', '/readings/'+pid+'?metric='+metric+'&limit='+limit);
+    if (!data.length) { document.getElementById('readings-body').innerHTML = '<tr><td colspan="4" style="color:var(--text3)">No readings found.</td></tr>'; document.getElementById('readings-stats').textContent = ''; return; }
+    var vals = data.map(function(r) { return r.value; });
+    var sum = vals.reduce(function(a,b) { return a+b; },0);
+    document.getElementById('readings-stats').textContent = data.length+' rows \u2014 Mean: '+(sum/vals.length).toFixed(1)+' | Min: '+Math.min.apply(null,vals).toFixed(1)+' | Max: '+Math.max.apply(null,vals).toFixed(1);
+    document.getElementById('readings-body').innerHTML = data.map(function(r) { return '<tr><td>'+fmtDate(r.timestamp)+'</td><td><strong>'+r.value+'</strong></td><td>'+r.unit+'</td><td>'+r.device_type+'</td></tr>'; }).join('');
+  } catch(e) { document.getElementById('readings-body').innerHTML = '<tr><td colspan="4" style="color:var(--danger)">'+e.message+'</td></tr>'; }
 }
 
+// ── Alerts ────────────────────────────────────
+async function loadAlerts() {
+  var pid = document.getElementById('al-participant').value;
+  try {
+    var data = await apiCall('GET', '/alerts/'+pid);
+    document.getElementById('alerts-body').innerHTML = data.length
+      ? data.map(function(a) { return '<tr><td>'+fmtDate(a.timestamp)+'</td><td>'+sevBadge(a.severity)+'</td><td>'+a.metric+'</td><td>'+a.value+'</td><td>'+a.message+'</td></tr>'; }).join('')
+      : '<tr><td colspan="5" style="color:var(--text3)">No alerts.</td></tr>';
+  } catch(e) { document.getElementById('alerts-body').innerHTML = '<tr><td colspan="5" style="color:var(--danger)">'+e.message+'</td></tr>'; }
+}
+
+// ── Rules ─────────────────────────────────────
+async function loadRules() {
+  try {
+    var data = await apiCall('GET', '/rules');
+    document.getElementById('rules-count').textContent = data.length + ' rules';
+    document.getElementById('rules-body').innerHTML = data.map(function(r) {
+      return '<tr><td style="font-family:monospace;font-size:.7rem">'+r.rule_id.slice(0,8)+'\u2026</td><td>'+r.metric_type+'</td>'+
+        '<td><code style="background:var(--surface2);padding:.08rem .35rem;border-radius:4px">'+r.condition+'</code></td>'+
+        '<td>'+sevBadge(r.severity)+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+r.message_template+'</td>'+
+        '<td><button class="btn btn-danger btn-sm" onclick="deleteRule(\''+r.rule_id+'\')">\u2715</button></td></tr>';
+    }).join('') || '<tr><td colspan="6" style="color:var(--text3)">No rules defined.</td></tr>';
+  } catch(e) {}
+}
+async function addRule() {
+  await apiCall('POST', '/rules', {
+    metric_type: document.getElementById('rule-metric').value,
+    condition: document.getElementById('rule-condition').value,
+    severity: document.getElementById('rule-severity').value,
+    message_template: document.getElementById('rule-message').value
+  });
+  document.getElementById('rule-condition').value = '';
+  loadRules();
+}
+async function deleteRule(id) { await apiCall('DELETE', '/rules/'+id); loadRules(); }
+
+// ── Ingest ────────────────────────────────────
+async function ingestData() {
+  try {
+    var res = await apiCall('POST', '/ingest', {
+      participant_id: document.getElementById('ing-participant').value,
+      device_type: document.getElementById('ing-device').value,
+      metric_type: document.getElementById('ing-metric').value,
+      value: parseFloat(document.getElementById('ing-value').value),
+      unit: document.getElementById('ing-unit').value
+    });
+    document.getElementById('ingest-result').innerHTML = '<span style="color:var(--success)">\u2713 Queued \u2014 ID: '+res.id+'</span>';
+  } catch(e) { document.getElementById('ingest-result').innerHTML = '<span style="color:var(--danger)">\u2715 '+e.message+'</span>'; }
+}
+
+async function ingestBatch() {
+  try {
+    var raw = JSON.parse(document.getElementById('ing-batch').value);
+    var res = await apiCall('POST', '/ingest/batch', raw);
+    document.getElementById('batch-result').innerHTML = '<span style="color:var(--success)">\u2713 ' + res.count + ' readings queued</span>';
+  } catch(e) { document.getElementById('batch-result').innerHTML = '<span style="color:var(--danger)">\u2715 '+e.message+'</span>'; }
+}
+
+// ── Participant Eval ──────────────────────────
+async function evaluateParticipant() {
+  var box = document.getElementById('eval-result');
+  box.style.display = 'block';
+  box.textContent = 'Evaluating\u2026 (may take a moment)';
+  try {
+    var res = await apiCall('GET', '/evaluate/'+document.getElementById('eval-participant').value+'?metric='+document.getElementById('eval-metric').value+'&hours='+document.getElementById('eval-hours').value);
+    box.textContent = res.evaluation;
+  } catch(e) { box.textContent = '\u26A0 Error: '+e.message; }
+}
+
+// ── Agent Chat ────────────────────────────────
+var chatHist = [];
+async function sendChat() {
+  var input = document.getElementById('chat-input');
+  var q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  chatHist.push({ role:'user', text:q });
+  renderChat();
+  var box = document.getElementById('chat-messages');
+  box.innerHTML += '\n<em style="color:var(--text3)">Thinking\u2026</em>';
+  box.scrollTop = box.scrollHeight;
+  try {
+    var res = await apiCall('POST', '/analyse', { query: q });
+    chatHist.push({ role:'agent', text:res.response });
+  } catch(e) { chatHist.push({ role:'agent', text:'\u26A0 Error: '+e.message }); }
+  renderChat();
+}
+function renderChat() {
+  var box = document.getElementById('chat-messages');
+  box.innerHTML = chatHist.map(function(m) {
+    return m.role==='user'
+      ? '<div style="color:var(--accent-light);margin:.35rem 0"><strong>You:</strong> '+esc(m.text)+'</div>'
+      : '<div style="margin:.35rem 0"><strong>\uD83E\uDD16 Agent:</strong>\n'+esc(m.text)+'</div>';
+  }).join('') || '<em style="color:var(--text3)">No messages yet.</em>';
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── Data Stream Controls ──────────────────────
+function onStreamSourceChange() {
+  document.getElementById('stream-speed-group').style.display = document.getElementById('stream-source').value === 'dataset' ? '' : 'none';
+  document.getElementById('stream-participants-hint').style.display = 'none';
+  document.getElementById('stream-result').innerHTML = '';
+}
+
+async function loadLifeSnapsParticipants() {
+  try {
+    var data = await apiCall('GET', '/lifesnaps/participants');
+    var hint = document.getElementById('stream-participants-hint');
+    var list = document.getElementById('stream-participants-list');
+    hint.style.display = 'block';
+    if (data.length) {
+      list.innerHTML = data.slice(0,30).map(function(p) { return '<span style="cursor:pointer;color:var(--accent-light);margin-right:.35rem" onclick="document.getElementById(\'stream-participant\').value=\''+p+'\'">'+p+'</span>'; }).join('') + (data.length>30 ? '<em> +' + (data.length-30) + ' more</em>' : '');
+    } else { list.textContent = 'No participants found.'; }
+  } catch(e) { document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 '+e.message+'</span>'; }
+}
+
+async function startDataStream() {
+  var source = document.getElementById('stream-source').value;
+  var pid = document.getElementById('stream-participant').value.trim();
+  if (!pid) { document.getElementById('stream-result').innerHTML = '<span style="color:var(--warning)">\u26A0 Enter a participant ID.</span>'; return; }
+  var btn = document.getElementById('stream-start-btn');
+  btn.disabled = true; btn.textContent = '\u23F3 Starting\u2026';
+  document.getElementById('stream-result').innerHTML = '';
+  document.getElementById('stream-status-label').textContent = 'Starting\u2026';
+  try {
+    if (source === 'dataset') {
+      var speed = parseFloat(document.getElementById('stream-speed').value);
+      await apiCall('POST', '/lifesnaps/stream/'+pid, { speed: speed });
+      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Streaming ('+speed+'x)';
+      document.getElementById('stream-result').innerHTML = '<span style="color:var(--success)">\u2713 LifeSnaps stream started for <strong>'+pid+'</strong> at '+speed+'x</span>';
+    } else {
+      await apiCall('POST', '/sync/stream/'+pid, {});
+      document.getElementById('stream-status-label').textContent = '\uD83D\uDFE2 Live Fitbit';
+      document.getElementById('stream-result').innerHTML = '<span style="color:var(--success)">\u2713 Live Fitbit stream started for <strong>'+pid+'</strong></span>';
+    }
+    addFeed('system', 'Stream started: '+source+' \u2014 '+pid);
+  } catch(e) {
+    document.getElementById('stream-status-label').textContent = '\uD83D\uDD34 Error';
+    document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 '+esc(e.message)+'</span>';
+  }
+  btn.disabled = false; btn.textContent = '\u25B6 Start Stream';
+}
+
+// ── Architecture Diagram ──────────────────────
 function renderArchDiagram() {
-  var svg = '<svg viewBox="0 0 900 420" style="width:100%;max-width:900px;height:auto;font-family:Segoe UI,system-ui,sans-serif">' +
-    '<rect width="900" height="420" rx="12" fill="#1a1d27"/>' +
-
-    // Data Sources
-    '<text x="80" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">DATA SOURCES</text>' +
-    '<rect x="20" y="42" width="120" height="44" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/>' +
-    '<text x="80" y="69" fill="#00cec9" font-size="12" text-anchor="middle" font-weight="600">Fitbit API</text>' +
-    '<rect x="20" y="96" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/>' +
-    '<text x="80" y="123" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">LifeSnaps CSV</text>' +
-    '<rect x="20" y="150" width="120" height="44" rx="8" fill="#242736" stroke="#74b9ff" stroke-width="1.5"/>' +
-    '<text x="80" y="177" fill="#74b9ff" font-size="12" text-anchor="middle" font-weight="600">Manual Ingest</text>' +
-
-    // Arrows sources to pipeline
-    '<line x1="140" y1="64" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-    '<line x1="140" y1="118" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-    '<line x1="140" y1="172" x2="200" y2="140" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-
-    // Pipeline
-    '<rect x="200" y="100" width="140" height="64" rx="10" fill="#242736" stroke="#6c5ce7" stroke-width="2"/>' +
-    '<text x="270" y="128" fill="#a29bfe" font-size="13" text-anchor="middle" font-weight="700">StreamPipeline</text>' +
-    '<text x="270" y="148" fill="#5a5e73" font-size="10" text-anchor="middle">asyncio.Queue</text>' +
-
-    // Arrows pipeline to processing
-    '<line x1="340" y1="132" x2="390" y2="80" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-    '<line x1="340" y1="132" x2="390" y2="200" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-    '<line x1="340" y1="132" x2="390" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-
-    // Processing
-    '<text x="480" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">PROCESSING</text>' +
-    '<rect x="390" y="42" width="160" height="56" rx="8" fill="#242736" stroke="#fdcb6e" stroke-width="1.5"/>' +
-    '<text x="470" y="66" fill="#fdcb6e" font-size="12" text-anchor="middle" font-weight="600">RuleEngine</text>' +
-    '<text x="470" y="84" fill="#5a5e73" font-size="10" text-anchor="middle">threshold alerts</text>' +
-
-    '<rect x="390" y="170" width="160" height="56" rx="8" fill="#242736" stroke="#6c5ce7" stroke-width="2"/>' +
-    '<text x="470" y="194" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="700">WearableAgent</text>' +
-    '<text x="470" y="212" fill="#5a5e73" font-size="10" text-anchor="middle">LangGraph ReAct + LLM</text>' +
-
-    '<rect x="390" y="282" width="160" height="56" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/>' +
-    '<text x="470" y="306" fill="#fd79a8" font-size="12" text-anchor="middle" font-weight="600">AffectPipeline</text>' +
-    '<text x="470" y="324" fill="#5a5e73" font-size="10" text-anchor="middle">arousal / stress / valence</text>' +
-
-    // Agent Tools box
-    '<rect x="574" y="152" width="130" height="90" rx="8" fill="#242736" stroke="#2e3245" stroke-width="1"/>' +
-    '<text x="639" y="170" fill="#8b8fa3" font-size="9" text-anchor="middle" font-weight="600" letter-spacing=".06em">AGENT TOOLS</text>' +
-    '<text x="639" y="186" fill="#5a5e73" font-size="9" text-anchor="middle">get_latest_readings</text>' +
-    '<text x="639" y="198" fill="#5a5e73" font-size="9" text-anchor="middle">analyse_metric</text>' +
-    '<text x="639" y="210" fill="#5a5e73" font-size="9" text-anchor="middle">compare_metrics</text>' +
-    '<text x="639" y="222" fill="#5a5e73" font-size="9" text-anchor="middle">get_affective_state</text>' +
-    '<text x="639" y="234" fill="#5a5e73" font-size="9" text-anchor="middle">+ more\u2026</text>' +
-    '<line x1="550" y1="198" x2="574" y2="198" stroke="#6c5ce7" stroke-width="1" stroke-dasharray="3,3"/>' +
-
-    // Arrows processing to outputs
-    '<line x1="550" y1="70" x2="720" y2="70" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-    '<line x1="550" y1="310" x2="620" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>' +
-
-    // Outputs
-    '<text x="785" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">OUTPUTS</text>' +
-    '<rect x="720" y="42" width="130" height="44" rx="8" fill="#242736" stroke="#e17055" stroke-width="1.5"/>' +
-    '<text x="785" y="60" fill="#e17055" font-size="11" text-anchor="middle" font-weight="600">Alerts</text>' +
-    '<text x="785" y="76" fill="#5a5e73" font-size="9" text-anchor="middle">NotificationDispatcher</text>' +
-
-    '<rect x="620" y="280" width="130" height="56" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/>' +
-    '<text x="685" y="304" fill="#00cec9" font-size="11" text-anchor="middle" font-weight="600">SQLite DB</text>' +
-    '<text x="685" y="320" fill="#5a5e73" font-size="9" text-anchor="middle">readings / alerts / affect</text>' +
-
-    '<rect x="720" y="360" width="130" height="44" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/>' +
-    '<text x="785" y="378" fill="#fd79a8" font-size="11" text-anchor="middle" font-weight="600">WebSocket</text>' +
-    '<text x="785" y="394" fill="#5a5e73" font-size="9" text-anchor="middle">\u2192 Flutter App</text>' +
-    '<line x1="685" y1="336" x2="720" y2="370" stroke="#2e3245" stroke-width="1" marker-end="url(#arrow)"/>' +
-
-    // FastAPI & Scheduler
-    '<rect x="20" y="260" width="120" height="44" rx="8" fill="#242736" stroke="#a29bfe" stroke-width="1.5"/>' +
-    '<text x="80" y="287" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="600">FastAPI</text>' +
-    '<text x="80" y="298" fill="#5a5e73" font-size="9" text-anchor="middle">REST + WS server</text>' +
-
-    '<rect x="20" y="320" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/>' +
-    '<text x="80" y="347" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">Scheduler</text>' +
-    '<text x="80" y="358" fill="#5a5e73" font-size="9" text-anchor="middle">periodic collection</text>' +
-    '<line x1="140" y1="340" x2="200" y2="145" stroke="#2e3245" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>' +
-
-    '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
-    '<path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5e73"/></marker></defs>' +
-  '</svg>';
-
-  document.getElementById('tools-arch-diagram').innerHTML = svg;
+  document.getElementById('arch-diagram').innerHTML = '<svg viewBox="0 0 900 420" style="width:100%;max-width:900px;height:auto;font-family:Segoe UI,system-ui,sans-serif">'+
+    '<rect width="900" height="420" rx="12" fill="#1a1d27"/>'+
+    '<text x="80" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">DATA SOURCES</text>'+
+    '<rect x="20" y="42" width="120" height="44" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/><text x="80" y="69" fill="#00cec9" font-size="12" text-anchor="middle" font-weight="600">Fitbit API</text>'+
+    '<rect x="20" y="96" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/><text x="80" y="123" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">LifeSnaps CSV</text>'+
+    '<rect x="20" y="150" width="120" height="44" rx="8" fill="#242736" stroke="#74b9ff" stroke-width="1.5"/><text x="80" y="177" fill="#74b9ff" font-size="12" text-anchor="middle" font-weight="600">Manual Ingest</text>'+
+    '<line x1="140" y1="64" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/><line x1="140" y1="118" x2="200" y2="130" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/><line x1="140" y1="172" x2="200" y2="140" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>'+
+    '<rect x="200" y="100" width="140" height="64" rx="10" fill="#242736" stroke="#6c5ce7" stroke-width="2"/><text x="270" y="128" fill="#a29bfe" font-size="13" text-anchor="middle" font-weight="700">StreamPipeline</text><text x="270" y="148" fill="#5a5e73" font-size="10" text-anchor="middle">asyncio.Queue</text>'+
+    '<line x1="340" y1="132" x2="390" y2="80" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/><line x1="340" y1="132" x2="390" y2="200" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/><line x1="340" y1="132" x2="390" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>'+
+    '<text x="480" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">PROCESSING</text>'+
+    '<rect x="390" y="42" width="160" height="56" rx="8" fill="#242736" stroke="#fdcb6e" stroke-width="1.5"/><text x="470" y="66" fill="#fdcb6e" font-size="12" text-anchor="middle" font-weight="600">RuleEngine</text><text x="470" y="84" fill="#5a5e73" font-size="10" text-anchor="middle">threshold alerts</text>'+
+    '<rect x="390" y="170" width="160" height="56" rx="8" fill="#242736" stroke="#6c5ce7" stroke-width="2"/><text x="470" y="194" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="700">WearableAgent</text><text x="470" y="212" fill="#5a5e73" font-size="10" text-anchor="middle">LangGraph ReAct + LLM</text>'+
+    '<rect x="390" y="282" width="160" height="56" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/><text x="470" y="306" fill="#fd79a8" font-size="12" text-anchor="middle" font-weight="600">AffectPipeline</text><text x="470" y="324" fill="#5a5e73" font-size="10" text-anchor="middle">arousal / stress / valence</text>'+
+    '<rect x="574" y="152" width="130" height="90" rx="8" fill="#242736" stroke="#2e3245" stroke-width="1"/><text x="639" y="170" fill="#8b8fa3" font-size="9" text-anchor="middle" font-weight="600" letter-spacing=".06em">AGENT TOOLS</text><text x="639" y="186" fill="#5a5e73" font-size="9" text-anchor="middle">get_latest_readings</text><text x="639" y="198" fill="#5a5e73" font-size="9" text-anchor="middle">analyse_metric</text><text x="639" y="210" fill="#5a5e73" font-size="9" text-anchor="middle">compare_metrics</text><text x="639" y="222" fill="#5a5e73" font-size="9" text-anchor="middle">get_affective_state</text><text x="639" y="234" fill="#5a5e73" font-size="9" text-anchor="middle">+ more\u2026</text><line x1="550" y1="198" x2="574" y2="198" stroke="#6c5ce7" stroke-width="1" stroke-dasharray="3,3"/>'+
+    '<line x1="550" y1="70" x2="720" y2="70" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/><line x1="550" y1="310" x2="620" y2="310" stroke="#2e3245" stroke-width="1.5" marker-end="url(#arrow)"/>'+
+    '<text x="785" y="30" fill="#8b8fa3" font-size="11" text-anchor="middle" font-weight="600" letter-spacing=".08em">OUTPUTS</text>'+
+    '<rect x="720" y="42" width="130" height="44" rx="8" fill="#242736" stroke="#e17055" stroke-width="1.5"/><text x="785" y="60" fill="#e17055" font-size="11" text-anchor="middle" font-weight="600">Alerts</text><text x="785" y="76" fill="#5a5e73" font-size="9" text-anchor="middle">NotificationDispatcher</text>'+
+    '<rect x="620" y="280" width="130" height="56" rx="8" fill="#242736" stroke="#00cec9" stroke-width="1.5"/><text x="685" y="304" fill="#00cec9" font-size="11" text-anchor="middle" font-weight="600">SQLite DB</text><text x="685" y="320" fill="#5a5e73" font-size="9" text-anchor="middle">readings / alerts / affect</text>'+
+    '<rect x="720" y="360" width="130" height="44" rx="8" fill="#242736" stroke="#fd79a8" stroke-width="1.5"/><text x="785" y="378" fill="#fd79a8" font-size="11" text-anchor="middle" font-weight="600">WebSocket</text><text x="785" y="394" fill="#5a5e73" font-size="9" text-anchor="middle">\u2192 Flutter App</text>'+
+    '<line x1="685" y1="336" x2="720" y2="370" stroke="#2e3245" stroke-width="1" marker-end="url(#arrow)"/>'+
+    '<rect x="20" y="260" width="120" height="44" rx="8" fill="#242736" stroke="#a29bfe" stroke-width="1.5"/><text x="80" y="287" fill="#a29bfe" font-size="12" text-anchor="middle" font-weight="600">FastAPI</text><text x="80" y="298" fill="#5a5e73" font-size="9" text-anchor="middle">REST + WS server</text>'+
+    '<rect x="20" y="320" width="120" height="44" rx="8" fill="#242736" stroke="#00b894" stroke-width="1.5"/><text x="80" y="347" fill="#00b894" font-size="12" text-anchor="middle" font-weight="600">Scheduler</text><text x="80" y="358" fill="#5a5e73" font-size="9" text-anchor="middle">periodic collection</text>'+
+    '<line x1="140" y1="340" x2="200" y2="145" stroke="#2e3245" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>'+
+    '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5e73"/></marker></defs></svg>';
 }
 
-// ── Init ──────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────
 connectWS();
-refreshDashboard();
+refreshOverview();
+refreshComponents();
 loadRules();
-pollStreamStats();
 loadToolsInventory();
 
-setInterval(refreshDashboard, 15000);
-setInterval(pollStreamStats, 3000);
-
-// Initial chart draw
-requestAnimationFrame(drawThroughputChart);
-window.addEventListener('resize', drawThroughputChart);
+setInterval(refreshOverview, 15000);
+setInterval(refreshComponents, 10000);
 </script>
 </body>
 </html>
