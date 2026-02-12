@@ -1,8 +1,12 @@
 /// Central app state managed via Provider / ChangeNotifier.
 library;
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api_client.dart';
 import 'config.dart';
 import 'models.dart';
@@ -31,6 +35,11 @@ class AppState extends ChangeNotifier {
   List<EMALabel> emaLabels = [];
   bool _streaming = false;
   String? _streamError;
+  WebSocketChannel? _wsChannel;
+  StreamSubscription<dynamic>? _wsSubscription;
+  int _liveReadingCount = 0;
+  List<String> lifesnapsParticipantIds = [];
+  bool _loadingParticipantIds = false;
 
   AppState() {
     _api = ApiClient(baseUrl: AppConfig.baseUrl);
@@ -50,6 +59,8 @@ class AppState extends ChangeNotifier {
   String? get streamError => _streamError;
   bool get useDataset => _useDataset;
   String get dataSource => _useDataset ? 'dataset' : 'live';
+  int get liveReadingCount => _liveReadingCount;
+  bool get loadingParticipantIds => _loadingParticipantIds;
 
   // ── Prefs ────────────────────────────────────────────────
 
@@ -96,6 +107,83 @@ class AppState extends ChangeNotifier {
     if (hasParticipant) {
       await refreshAll();
     }
+  }
+
+  // ── LifeSnaps participant IDs ──────────────────────────
+
+  Future<void> fetchLifeSnapsParticipantIds() async {
+    _loadingParticipantIds = true;
+    notifyListeners();
+    try {
+      lifesnapsParticipantIds = await _api.getLifeSnapsParticipants();
+    } catch (e) {
+      // Non-critical — may fail if server unreachable
+    }
+    _loadingParticipantIds = false;
+    notifyListeners();
+  }
+
+  // ── WebSocket live feed ─────────────────────────────────
+
+  /// Connect WebSocket and start receiving readings that match
+  /// the current participant + selected metric. Updates `readings`
+  /// list in real-time so the dashboard chart auto-refreshes.
+  void _connectWebSocket() {
+    _disconnectWebSocket();
+    try {
+      _wsChannel = _api.connectStream(channel: 'readings');
+      _liveReadingCount = 0;
+      _wsSubscription = _wsChannel!.stream.listen(
+        (raw) {
+          try {
+            final json = jsonDecode(raw as String) as Map<String, dynamic>;
+            final data = (json['data'] is Map<String, dynamic>)
+                ? json['data'] as Map<String, dynamic>
+                : json;
+            final pid = data['participant_id'] as String? ?? '';
+            final metric = data['metric_type'] as String? ?? '';
+            final value = (data['value'] as num?)?.toDouble() ?? 0;
+            final unit = data['unit'] as String? ?? '';
+            final ts = data['timestamp'] as String? ?? DateTime.now().toIso8601String();
+
+            // Accept if the participant matches (or if we're in dataset mode
+            // and the server is streaming for the selected participant)
+            if (pid == _participantId || _participantId.isEmpty) {
+              _liveReadingCount++;
+              // If the metric matches what's selected, append to the chart
+              if (metric == _selectedMetric) {
+                readings.add(SensorReading(
+                  id: 'live-$_liveReadingCount',
+                  value: value,
+                  unit: unit,
+                  timestamp: ts,
+                  deviceType: 'stream',
+                ));
+                // Keep last 200 readings to avoid memory bloat
+                if (readings.length > 200) {
+                  readings = readings.sublist(readings.length - 200);
+                }
+              }
+              notifyListeners();
+            }
+          } catch (_) {
+            // Malformed message — skip
+          }
+        },
+        onError: (_) => _disconnectWebSocket(),
+        onDone: () => _disconnectWebSocket(),
+      );
+    } catch (e) {
+      _streamError = 'WebSocket: $e';
+      notifyListeners();
+    }
+  }
+
+  void _disconnectWebSocket() {
+    _wsSubscription?.cancel();
+    _wsSubscription = null;
+    _wsChannel?.sink.close();
+    _wsChannel = null;
   }
 
   // ── Data fetching ────────────────────────────────────────
@@ -334,6 +422,7 @@ class AppState extends ChangeNotifier {
     if (!hasParticipant) return;
     _streaming = true;
     _streamError = null;
+    _liveReadingCount = 0;
     notifyListeners();
     try {
       if (_useDataset) {
@@ -341,6 +430,8 @@ class AppState extends ChangeNotifier {
       } else {
         await _api.startLiveFitbitStream(_participantId);
       }
+      // Connect WebSocket to receive streamed readings live
+      _connectWebSocket();
     } catch (e) {
       _streamError = e.toString();
       _streaming = false;
@@ -351,6 +442,7 @@ class AppState extends ChangeNotifier {
   void stopStreaming() {
     _streaming = false;
     _streamError = null;
+    _disconnectWebSocket();
     notifyListeners();
   }
 

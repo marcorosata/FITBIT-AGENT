@@ -99,6 +99,60 @@ _METRIC_INFO: dict[str, dict[str, Any]] = {
         "normal_range": (5, 25),
         "description": "Approximate floors climbed (1 floor ≈ 3 m elevation).",
     },
+    "body_weight": {
+        "label": "Body Weight",
+        "unit": "kg",
+        "normal_range": (50, 120),
+        "description": "Body weight measured from a connected smart scale.",
+    },
+    "body_fat": {
+        "label": "Body Fat",
+        "unit": "%",
+        "normal_range": (10, 30),
+        "description": "Body fat percentage from a connected smart scale or manual entry.",
+    },
+    "active_zone_minutes": {
+        "label": "Active Zone Minutes",
+        "unit": "min",
+        "normal_range": (15, 120),
+        "description": "Minutes spent in fat-burn, cardio, or peak heart rate zones. AHA recommends 150 min/week.",
+    },
+    "skin_temperature_variation": {
+        "label": "Skin Temperature Variation",
+        "unit": "°C",
+        "normal_range": (-1.0, 1.0),
+        "description": "Nightly deviation from personal skin-temperature baseline. Large swings may indicate illness.",
+    },
+    "sedentary_minutes": {
+        "label": "Sedentary Minutes",
+        "unit": "min",
+        "normal_range": (300, 720),
+        "description": "Minutes with little or no activity. Excessive sedentary time is a cardiovascular risk factor.",
+    },
+    "lightly_active_minutes": {
+        "label": "Lightly Active Minutes",
+        "unit": "min",
+        "normal_range": (60, 300),
+        "description": "Minutes in light-intensity activity (walking slowly, light housework).",
+    },
+    "moderately_active_minutes": {
+        "label": "Moderately Active Minutes",
+        "unit": "min",
+        "normal_range": (15, 90),
+        "description": "Minutes in moderate-intensity activity (brisk walking, cycling).",
+    },
+    "very_active_minutes": {
+        "label": "Very Active Minutes",
+        "unit": "min",
+        "normal_range": (10, 60),
+        "description": "Minutes in vigorous-intensity activity (running, HIIT). Key contributor to cardio fitness.",
+    },
+    "affect_tag": {
+        "label": "Affect Self-Report",
+        "unit": "tag",
+        "normal_range": None,
+        "description": "Ecological Momentary Assessment (EMA) self-reported emotional label. Used as ground truth for affect inference.",
+    },
 }
 
 

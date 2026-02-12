@@ -205,6 +205,38 @@ textarea { resize: vertical; min-height: 70px; }
 .filter-chip:hover { border-color: var(--accent); color: var(--text); }
 .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+/* ── Modal overlay ────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,.55); z-index: 200; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.5rem; width: 440px; max-width: 92vw; box-shadow: var(--shadow);
+}
+.modal-box .modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+.modal-box .modal-close { margin-left: auto; cursor: pointer; background: none; border: none; color: var(--text3); font-size: 1.2rem; }
+.modal-box .modal-close:hover { color: var(--text); }
+.modal-box .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+
+/* ── Toggle button ────────────────────────────────────────── */
+.toggle-btn {
+  display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .55rem;
+  border-radius: 6px; font-size: .68rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text2); transition: all .15s; margin-top: .3rem;
+}
+.toggle-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+.toggle-btn.running { border-color: var(--success); color: var(--success); }
+
+/* ── Edit button ──────────────────────────────────────────── */
+.edit-btn {
+  display: inline-flex; align-items: center; padding: .15rem .4rem; border-radius: 5px;
+  font-size: .68rem; cursor: pointer; border: 1px solid transparent;
+  background: transparent; color: var(--text3); transition: all .15s;
+}
+.edit-btn:hover { border-color: var(--accent); color: var(--accent-light); background: rgba(108,92,231,.08); }
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .shell { grid-template-columns: 1fr; }
@@ -657,6 +689,35 @@ textarea { resize: vertical; min-height: 70px; }
 
 </div><!-- .main -->
 </div><!-- .shell -->
+
+<!-- ── Metric Edit Modal ──────────────────────────────────── -->
+<div class="modal-overlay" id="metric-edit-modal">
+  <div class="modal-box">
+    <div class="modal-title">
+      &#x270F;&#xFE0F; Edit Metric
+      <button class="modal-close" onclick="closeMetricModal()">&times;</button>
+    </div>
+    <input type="hidden" id="me-key">
+    <div class="form-group" style="margin-bottom:.65rem">
+      <label>Label</label>
+      <input id="me-label" placeholder="Display name">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Unit</label><input id="me-unit" placeholder="e.g. bpm"></div>
+      <div class="form-group"><label>Range Low</label><input id="me-range-low" type="number" step="0.1"></div>
+      <div class="form-group"><label>Range High</label><input id="me-range-high" type="number" step="0.1"></div>
+    </div>
+    <div class="form-group" style="margin-top:.65rem">
+      <label>Description</label>
+      <textarea id="me-description" rows="3"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeMetricModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMetricEdit()">&#x1F4BE; Save</button>
+    </div>
+    <div id="me-result" style="font-size:.78rem;margin-top:.4rem"></div>
+  </div>
+</div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -1258,6 +1319,7 @@ function renderToolsPage() {
   var categoryIcons = { streaming: '&#x1F4E1;', intelligence: '&#x1F9E0;', monitoring: '&#x1F6E1;', collection: '&#x1F4E5;' };
   var categoryColors = { streaming: 'var(--inbound)', intelligence: 'var(--accent-light)', monitoring: 'var(--warning)', collection: 'var(--success)' };
 
+  var toggleable = ['SchedulerService'];
   var compHtml = d.components.map(function(c) {
     var statusColor = c.status === 'running' || c.status === 'ready' || c.status === 'active' ? 'var(--success)' : 'var(--text3)';
     var statusLabel = c.status.replace('_', ' ');
@@ -1272,6 +1334,12 @@ function renderToolsPage() {
       });
       if (detailParts.length) details = '<div style="font-size:.72rem;margin-top:.4rem;display:flex;gap:.75rem;flex-wrap:wrap">' + detailParts.join('') + '</div>';
     }
+    var toggleBtn = '';
+    if (toggleable.indexOf(c.name) !== -1) {
+      var isOn = c.status === 'running' || c.status === 'active';
+      toggleBtn = '<button class="toggle-btn' + (isOn ? ' running' : '') + '" onclick="toggleComponent(\'' + escHtml(c.name) + '\')">' +
+        (isOn ? '&#x23F8; Stop' : '&#x25B6; Start') + '</button>';
+    }
 
     return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;border-left:3px solid ' + borderColor + '">' +
       '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">' +
@@ -1284,6 +1352,7 @@ function renderToolsPage() {
       '</div>' +
       '<div style="font-size:.78rem;color:var(--text2);line-height:1.4">' + escHtml(c.description) + '</div>' +
       details +
+      toggleBtn +
     '</div>';
   }).join('');
   document.getElementById('tools-components-grid').innerHTML = compHtml;
@@ -1323,7 +1392,10 @@ function renderToolsPage() {
     return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;border-left:3px solid ' + color + '">' +
       '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
         '<span style="font-weight:700;font-size:.85rem;color:' + color + '">' + escHtml(m.label) + '</span>' +
-        '<span style="margin-left:auto;font-size:.72rem;color:var(--text3);font-family:monospace">' + escHtml(m.key) + '</span>' +
+        '<span style="margin-left:auto;display:flex;align-items:center;gap:.3rem">' +
+          '<button class="edit-btn" onclick="openMetricModal(\'' + escHtml(m.key) + '\')">&#x270F;&#xFE0F; Edit</button>' +
+          '<span style="font-size:.72rem;color:var(--text3);font-family:monospace">' + escHtml(m.key) + '</span>' +
+        '</span>' +
       '</div>' +
       '<div style="font-size:.75rem;color:var(--text2);margin-bottom:.35rem;line-height:1.4">' + escHtml(m.description || '') + '</div>' +
       '<div style="display:flex;gap:1rem;font-size:.72rem">' +
@@ -1361,6 +1433,60 @@ function renderApiTable() {
     '</tr>';
   }).join('');
   document.getElementById('tools-api-body').innerHTML = html || '<tr><td colspan="4" style="color:var(--text3)">No routes match filter.</td></tr>';
+}
+
+// ── Metric Edit Modal ─────────────────────────────────────────
+function openMetricModal(key) {
+  if (!toolsData) return;
+  var m = toolsData.metrics.find(function(x) { return x.key === key; });
+  if (!m) return;
+  document.getElementById('me-key').value = key;
+  document.getElementById('me-label').value = m.label || '';
+  document.getElementById('me-unit').value = m.unit || '';
+  document.getElementById('me-range-low').value = m.normal_range ? m.normal_range[0] : '';
+  document.getElementById('me-range-high').value = m.normal_range ? m.normal_range[1] : '';
+  document.getElementById('me-description').value = m.description || '';
+  document.getElementById('me-result').innerHTML = '';
+  document.getElementById('metric-edit-modal').classList.add('open');
+}
+
+function closeMetricModal() {
+  document.getElementById('metric-edit-modal').classList.remove('open');
+}
+
+async function saveMetricEdit() {
+  var key = document.getElementById('me-key').value;
+  var body = {
+    label: document.getElementById('me-label').value,
+    unit: document.getElementById('me-unit').value,
+    description: document.getElementById('me-description').value,
+  };
+  var lo = document.getElementById('me-range-low').value;
+  var hi = document.getElementById('me-range-high').value;
+  if (lo !== '' && hi !== '') {
+    body.normal_range = [parseFloat(lo), parseFloat(hi)];
+  } else {
+    body.normal_range = null;
+  }
+  try {
+    await api('PUT', '/admin/api/tools/metrics/' + key, body);
+    document.getElementById('me-result').innerHTML = '<span style="color:var(--success)">&#x2713; Saved</span>';
+    // Refresh data
+    await loadToolsInventory();
+    setTimeout(closeMetricModal, 600);
+  } catch(e) {
+    document.getElementById('me-result').innerHTML = '<span style="color:var(--danger)">&#x2717; ' + e.message + '</span>';
+  }
+}
+
+// ── Component Toggle ──────────────────────────────────────────
+async function toggleComponent(name) {
+  try {
+    var res = await api('PUT', '/admin/api/tools/components/' + name + '/toggle');
+    await loadToolsInventory();
+  } catch(e) {
+    alert('Toggle failed: ' + e.message);
+  }
 }
 
 function renderArchDiagram() {

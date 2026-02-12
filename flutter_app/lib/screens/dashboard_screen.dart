@@ -622,6 +622,24 @@ class _StreamDataButtonState extends State<_StreamDataButton> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (isStreaming && state.liveReadingCount > 0) ...[
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.fitbitTeal.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${state.liveReadingCount} received',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.fitbitTeal,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),

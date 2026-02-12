@@ -136,6 +136,195 @@ async def connection_info():
     }
 
 
+@router.put("/admin/api/tools/metrics/{metric_key}", tags=["admin"])
+async def update_metric_info(metric_key: str, body: dict):
+    """Update the reference info (label, unit, normal_range, description) for a metric.
+
+    Accepts a JSON body with any subset of: label, unit, normal_range, description.
+    Changes are applied to the in-memory _METRIC_INFO dict used by the agent tools.
+    """
+    from wearable_agent.agent.tools import _METRIC_INFO
+    from wearable_agent.models import MetricType
+
+    # Validate metric exists
+    valid_keys = {mt.value for mt in MetricType}
+    if metric_key not in valid_keys:
+        from fastapi import HTTPException
+        raise HTTPException(404, f"Unknown metric: {metric_key}")
+
+    info = _METRIC_INFO.setdefault(metric_key, {})
+    if "label" in body:
+        info["label"] = str(body["label"])
+    if "unit" in body:
+        info["unit"] = str(body["unit"])
+    if "description" in body:
+        info["description"] = str(body["description"])
+    if "normal_range" in body:
+        nr = body["normal_range"]
+        if nr is None:
+            info["normal_range"] = None
+        elif isinstance(nr, (list, tuple)) and len(nr) == 2:
+            info["normal_range"] = (float(nr[0]), float(nr[1]))
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(422, "normal_range must be [low, high] or null")
+
+    logger.info("admin.metric_updated", metric=metric_key, fields=list(body.keys()))
+    return {"metric": metric_key, "updated": info}
+
+
+@router.put("/admin/api/tools/components/{component_name}/toggle", tags=["admin"])
+async def toggle_component(component_name: str):
+    """Start or stop a component by name (scheduler only for now)."""
+    from wearable_agent.api.server import _scheduler_service
+
+    if component_name == "SchedulerService":
+        if _scheduler_service is None:
+            from fastapi import HTTPException
+            raise HTTPException(503, "Scheduler not configured.")
+        if _scheduler_service._running:
+            await _scheduler_service.stop()
+            return {"component": component_name, "status": "stopped"}
+        else:
+            await _scheduler_service.start()
+            return {"component": component_name, "status": "running"}
+
+    from fastapi import HTTPException
+    raise HTTPException(400, f"Component '{component_name}' cannot be toggled from the admin UI.")
+
+
+@router.get("/admin/api/tools", tags=["admin"])
+async def get_tools_inventory():
+    """Return a complete inventory of all agent tools, API routes, and system components."""
+    from wearable_agent.api.server import (
+        _affect_pipeline,
+        _agent,
+        _pipeline,
+        _rule_engine,
+        _scheduler_service,
+    )
+
+    # ── Agent LangChain tools ────────────────────────────────
+    agent_tools = []
+    if _agent is not None:
+        for t in _agent._tools:
+            sig = {}
+            if hasattr(t, "args_schema") and t.args_schema is not None:
+                for name, field in t.args_schema.model_fields.items():
+                    sig[name] = {
+                        "type": field.annotation.__name__ if hasattr(field.annotation, "__name__") else str(field.annotation),
+                        "required": field.is_required(),
+                        "default": repr(field.default) if field.default is not None else None,
+                    }
+            agent_tools.append({
+                "name": t.name,
+                "description": (t.description or "")[:300],
+                "parameters": sig,
+                "category": "agent",
+            })
+
+    # ── API endpoints ────────────────────────────────────────
+    from wearable_agent.api.server import app as _app
+
+    api_routes = []
+    for route in _app.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            api_routes.append({
+                "path": route.path,
+                "methods": sorted(route.methods - {"HEAD", "OPTIONS"}),
+                "name": getattr(route, "name", ""),
+                "summary": getattr(route.endpoint, "__doc__", "") or "",
+                "tags": getattr(route, "tags", []),
+            })
+
+    # ── System components ────────────────────────────────────
+    components = [
+        {
+            "name": "StreamPipeline",
+            "category": "streaming",
+            "status": "running" if _pipeline else "stopped",
+            "description": "In-memory asyncio.Queue publisher/consumer pipeline for sensor readings.",
+            "details": {"pending": _pipeline.pending if _pipeline else 0},
+        },
+        {
+            "name": "WearableAgent",
+            "category": "intelligence",
+            "status": "ready" if _agent else "not_ready",
+            "description": "LangGraph ReAct agent combining rule-based and LLM-powered analysis.",
+            "details": {"tool_count": len(_agent._tools) if _agent else 0},
+        },
+        {
+            "name": "RuleEngine",
+            "category": "monitoring",
+            "status": "active" if _rule_engine else "inactive",
+            "description": "Evaluates Python expressions against incoming readings to fire alerts.",
+            "details": {"rule_count": len(_rule_engine.list_rules()) if _rule_engine else 0},
+        },
+        {
+            "name": "AffectPipeline",
+            "category": "intelligence",
+            "status": "ready" if _affect_pipeline else "not_ready",
+            "description": "Multi-stage inference pipeline for arousal, stress, valence estimation from physiological signals.",
+            "details": {},
+        },
+        {
+            "name": "SchedulerService",
+            "category": "collection",
+            "status": "running" if (_scheduler_service and _scheduler_service._running) else "stopped",
+            "description": "Periodic Fitbit data collection scheduler.",
+            "details": {
+                "interval_minutes": get_settings().scheduler_collect_interval_minutes,
+            },
+        },
+        {
+            "name": "WebSocketManager",
+            "category": "streaming",
+            "status": "active",
+            "description": "Real-time WebSocket broadcast manager with channel subscriptions.",
+            "details": {
+                "clients": ws_manager.active_count,
+                "channels": ws_manager.channel_breakdown(),
+            },
+        },
+        {
+            "name": "NotificationDispatcher",
+            "category": "monitoring",
+            "status": "active",
+            "description": "Routes alerts to configured notification channels (WebSocket, log, etc.).",
+            "details": {},
+        },
+        {
+            "name": "EMAScheduler",
+            "category": "intelligence",
+            "status": "active",
+            "description": "Ecological Momentary Assessment scheduler for ground-truth affect labels.",
+            "details": {},
+        },
+    ]
+
+    # ── Metric reference info ────────────────────────────────
+    from wearable_agent.agent.tools import _METRIC_INFO
+    from wearable_agent.models import MetricType
+
+    metrics = []
+    for mt in MetricType:
+        info = _METRIC_INFO.get(mt.value, {})
+        metrics.append({
+            "key": mt.value,
+            "label": info.get("label", mt.value),
+            "unit": info.get("unit", ""),
+            "normal_range": info.get("normal_range"),
+            "description": info.get("description", ""),
+        })
+
+    return {
+        "agent_tools": agent_tools,
+        "api_routes": api_routes,
+        "components": components,
+        "metrics": metrics,
+    }
+
+
 # ── UI routes ────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse, tags=["ui"])
