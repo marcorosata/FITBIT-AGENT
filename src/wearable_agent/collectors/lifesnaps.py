@@ -14,7 +14,6 @@ from typing import Any, AsyncIterator
 
 import pandas as pd
 from wearable_agent.collectors.base import BaseCollector
-from wearable_agent.config import get_settings
 from wearable_agent.models import DeviceType, MetricType, SensorReading
 
 logger = logging.getLogger(__name__)
@@ -30,23 +29,60 @@ class LifeSnapsCollector(BaseCollector):
         
         Args:
             data_dir: Path to the 'rais_anonymized' directory. If None,
-                     uses settings.lifesnaps_data_dir or defaults.
+                     searches multiple known locations.
         """
         if data_dir:
             self.data_path = data_dir
         else:
-            # Fallback/Default
-            settings = get_settings()
-            # Assuming a setting exists or using default location
-            self.data_path = getattr(settings, "lifesnaps_data_dir", Path("data/lifesnaps"))
+            self.data_path = self._resolve_data_path()
         
-        self.csv_path = self.data_path / "rais_anonymized" / "csv_rais_anonymized"
+        self.csv_path = self.data_path / "csv_rais_anonymized"
         self.daily_file = self.csv_path / "daily_fitbit_sema_df_unprocessed.csv"
         self.hourly_file = self.csv_path / "hourly_fitbit_sema_df_unprocessed.csv"
 
         self._daily_df: pd.DataFrame | None = None
         self._hourly_df: pd.DataFrame | None = None
         self._participants: list[str] = []
+
+    @staticmethod
+    def _resolve_data_path() -> Path:
+        """Search known locations for the rais_anonymized dataset.
+
+        Priority order:
+        1. scripts/rais_anonymized  (Git LFS location — works on Railway)
+        2. data/lifesnaps/rais_anonymized  (local dev default)
+        3. Falls back to scripts/rais_anonymized even if missing.
+        """
+        from wearable_agent.config import _PROJECT_ROOT
+
+        candidates = [
+            _PROJECT_ROOT / "scripts" / "rais_anonymized",
+            _PROJECT_ROOT / "data" / "lifesnaps" / "rais_anonymized",
+            Path("scripts") / "rais_anonymized",
+            Path("data") / "lifesnaps" / "rais_anonymized",
+        ]
+        for p in candidates:
+            csv_dir = p / "csv_rais_anonymized"
+            if (csv_dir / "daily_fitbit_sema_df_unprocessed.csv").exists():
+                logger.info(f"LifeSnaps data found at {p}")
+                return p
+        # Default to first candidate (will raise FileNotFoundError later)
+        return candidates[0]
+
+    @staticmethod
+    def _reassemble_bson(parts_dir: Path, output_file: Path) -> None:
+        """Reassemble a BSON file from split LFS parts."""
+        parts = sorted(parts_dir.glob("fitbit.bson.part*"))
+        if not parts:
+            return
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Reassembling {len(parts)} parts -> {output_file}")
+        with open(output_file, "wb") as out:
+            for part in parts:
+                with open(part, "rb") as inp:
+                    while chunk := inp.read(64 * 1024 * 1024):
+                        out.write(chunk)
+        logger.info(f"Reassembled: {output_file} ({output_file.stat().st_size / 1024 / 1024:.0f} MB)")
 
     def _load_data(self) -> None:
         """Lazy load the CSV data."""
@@ -238,7 +274,15 @@ class LifeSnapsCollector(BaseCollector):
         """Yield readings from BSON file, time-shifted."""
         from wearable_agent.collectors.lifesnaps_bson import BSONStreamer
         
-        bson_path = self.data_path / "rais_anonymized" / "mongo_rais_anonymized" / "fitbit.bson"
+        bson_path = self.data_path / "mongo_rais_anonymized" / "fitbit.bson"
+        # If the full bson doesn't exist, try reassembling from LFS parts
+        if not bson_path.exists():
+            parts_dir = bson_path.parent / "fitbit_parts"
+            if parts_dir.exists() and list(parts_dir.glob("fitbit.bson.part*")):
+                logger.info("Reassembling fitbit.bson from LFS parts...")
+                self._reassemble_bson(parts_dir, bson_path)
+            else:
+                logger.warning(f"BSON file not found: {bson_path}")
         streamer = BSONStreamer(bson_path)
         
         # We need to find the first timestamp to synchronize
