@@ -7,7 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterator, Generator
 
-import bson
+try:
+    import bson
+except ImportError:
+    bson = None  # type: ignore[assignment]
+
 from wearable_agent.models import DeviceType, MetricType, SensorReading
 
 logger = logging.getLogger(__name__)
@@ -28,6 +32,10 @@ class BSONStreamer:
         """
         if not self.bson_path.exists():
             logger.error(f"BSON file not found at {self.bson_path}")
+            return
+
+        if bson is None:
+            logger.error("pymongo/bson not installed — cannot stream BSON data")
             return
 
         # Map MetricType to BSON 'type' string
