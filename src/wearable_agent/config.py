@@ -98,9 +98,6 @@ class Settings(BaseSettings):
     affect_max_daily_ema: int = 8  # Max EMA prompts per day
     affect_sync_lag_threshold_seconds: int = 1800  # Stale data if sync > 30 min
 
-    # ── LifeSnaps ─────────────────────────────────────────────
-    lifesnaps_autostream_participant_id: str | None = "621e2e8e67b776a24055b564"
-
 
 @lru_cache
 def get_settings() -> Settings:

@@ -121,12 +121,18 @@ async def lifespan(app: FastAPI):
             "value": reading.value,
             "unit": reading.unit,
             "timestamp": reading.timestamp.isoformat(),
-            "metadata": reading.metadata,
         }
         ws_manager.record_inbound(reading_payload)
 
         # Broadcast reading to WebSocket clients
-        await ws_manager.broadcast_reading(reading_payload)
+        await ws_manager.broadcast_reading({
+            "id": reading.id,
+            "participant_id": reading.participant_id,
+            "metric_type": reading.metric_type.value,
+            "value": reading.value,
+            "unit": reading.unit,
+            "timestamp": reading.timestamp.isoformat(),
+        })
 
         # Broadcast any fired alerts
         for alert in alerts:
@@ -160,7 +166,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("server.started", port=settings.api_port)
 
-    # 9. Background: download LFS data files + Auto-stream
+    # 9. Background: download LFS data files if needed (Railway)
     async def _fetch_lfs_data() -> None:
         """Download LFS pointer files from GitHub in background."""
         import subprocess
@@ -186,34 +192,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("server.lfs_fetch_error", error=str(e))
 
-    async def _background_init() -> None:
-        """Run startup tasks sequentially."""
-        # A. Fetch LFS data
-        await _fetch_lfs_data()
-
-        # B. Start auto-streaming if configured
-        pid = settings.lifesnaps_autostream_participant_id
-        if pid:
-            from wearable_agent.models import MetricType
-            from wearable_agent.api.routes.lifesnaps import _run_stream
-
-            logger.info("server.autostream_init", participant=pid)
-            metrics = [
-                MetricType.HEART_RATE, MetricType.STEPS, MetricType.STRESS,
-                MetricType.SPO2, MetricType.HRV, MetricType.BREATHING_RATE,
-                MetricType.CALORIES, MetricType.DISTANCE, MetricType.VO2_MAX,
-                MetricType.SKIN_TEMPERATURE, MetricType.RESTING_HEART_RATE,
-                MetricType.SLEEP_EFFICIENCY, MetricType.AFFECT_TAG
-            ]
-            # Run as fire-and-forget background task
-            asyncio.create_task(_run_stream(pid, metrics, speed=1.0))  # Natural real-time speed
-
-    _startup_task = asyncio.create_task(_background_init())
+    _lfs_task = asyncio.create_task(_fetch_lfs_data())
 
     yield  # ← application runs
 
     # Shutdown
-    _startup_task.cancel()
+    _lfs_task.cancel()
     if _scheduler_service:
         await _scheduler_service.stop()
     if _pipeline:
