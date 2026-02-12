@@ -41,6 +41,14 @@ class MetricType(str, Enum):
     VO2_MAX = "vo2_max"
     ACTIVE_ZONE_MINUTES = "active_zone_minutes"
     STRESS = "stress"
+    SLEEP_EFFICIENCY = "sleep_efficiency"
+    RESTING_HEART_RATE = "resting_heart_rate"
+    SKIN_TEMPERATURE_VARIATION = "skin_temperature_variation"
+    SEDENTARY_MINUTES = "sedentary_minutes"
+    LIGHTLY_ACTIVE_MINUTES = "lightly_active_minutes"
+    MODERATELY_ACTIVE_MINUTES = "moderately_active_minutes"
+    VERY_ACTIVE_MINUTES = "very_active_minutes"
+    AFFECT_TAG = "affect_tag"
 
 
 class AlertSeverity(str, Enum):

@@ -117,7 +117,12 @@ async def start_streaming(
         MetricType.HRV,
         MetricType.BREATHING_RATE,
         MetricType.CALORIES,
-        MetricType.DISTANCE
+        MetricType.DISTANCE,
+        MetricType.VO2_MAX,
+        MetricType.SKIN_TEMPERATURE,
+        MetricType.RESTING_HEART_RATE,
+        MetricType.SLEEP_EFFICIENCY,
+        MetricType.AFFECT_TAG
     ]
 
     # Verify participant exists (allow BSON-only participants to pass)

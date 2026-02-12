@@ -121,18 +121,12 @@ async def lifespan(app: FastAPI):
             "value": reading.value,
             "unit": reading.unit,
             "timestamp": reading.timestamp.isoformat(),
+            "metadata": reading.metadata,
         }
         ws_manager.record_inbound(reading_payload)
 
         # Broadcast reading to WebSocket clients
-        await ws_manager.broadcast_reading({
-            "id": reading.id,
-            "participant_id": reading.participant_id,
-            "metric_type": reading.metric_type.value,
-            "value": reading.value,
-            "unit": reading.unit,
-            "timestamp": reading.timestamp.isoformat(),
-        })
+        await ws_manager.broadcast_reading(reading_payload)
 
         # Broadcast any fired alerts
         for alert in alerts:
@@ -207,7 +201,9 @@ async def lifespan(app: FastAPI):
             metrics = [
                 MetricType.HEART_RATE, MetricType.STEPS, MetricType.STRESS,
                 MetricType.SPO2, MetricType.HRV, MetricType.BREATHING_RATE,
-                MetricType.CALORIES, MetricType.DISTANCE
+                MetricType.CALORIES, MetricType.DISTANCE, MetricType.VO2_MAX,
+                MetricType.SKIN_TEMPERATURE, MetricType.RESTING_HEART_RATE,
+                MetricType.SLEEP_EFFICIENCY, MetricType.AFFECT_TAG
             ]
             # Run as fire-and-forget background task
             asyncio.create_task(_run_stream(pid, metrics, speed=1.0))  # Natural real-time speed
