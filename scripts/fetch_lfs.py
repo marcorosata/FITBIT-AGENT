@@ -7,8 +7,9 @@ the .git directory needed for `git lfs pull`.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 REPO = "marcorosata/FITBIT-AGENT"
@@ -43,30 +44,33 @@ def is_lfs_pointer(filepath: Path) -> bool:
 
 
 def download_lfs_file(rel_path: str) -> bool:
-    """Download actual LFS file content from GitHub."""
+    """Download actual LFS file content from GitHub using urllib."""
     filepath = Path(rel_path)
     url = f"https://media.githubusercontent.com/media/{REPO}/{BRANCH}/{rel_path}"
 
-    # If repo is private, use token for auth
-    token = os.environ.get("GITHUB_TOKEN", "")
-
-    print(f"  Downloading {rel_path} from GitHub LFS...")
+    print(f"  Downloading {rel_path} ...")
+    print(f"  URL: {url}")
     try:
-        cmd = ["curl", "-fSL", "--retry", "3", "-o", str(filepath)]
+        req = urllib.request.Request(url)
+        # Add GitHub token if available (for private repos)
+        token = os.environ.get("GITHUB_TOKEN", "")
         if token:
-            cmd += ["-H", f"Authorization: token {token}"]
-            print("  (using GITHUB_TOKEN for auth)")
-        cmd.append(url)
+            req.add_header("Authorization", f"token {token}")
+            print("  (using GITHUB_TOKEN)")
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 min timeout for large files
-        )
-        if result.returncode != 0:
-            print(f"  FAILED: {result.stderr.strip()}")
-            return False
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            data = resp.read()
+            filepath.write_bytes(data)
+
+        size = filepath.stat().st_size
+        print(f"  OK: {size / 1024 / 1024:.1f} MB")
+        return True
+    except urllib.error.HTTPError as e:
+        print(f"  HTTP ERROR {e.code}: {e.reason}")
+        return False
+    except Exception as e:
+        print(f"  ERROR: {e}")
+        return False
         size = filepath.stat().st_size
         print(f"  OK: {size / 1024 / 1024:.1f} MB")
         return True
@@ -77,6 +81,8 @@ def download_lfs_file(rel_path: str) -> bool:
 
 def main() -> None:
     print("=== LFS File Check ===")
+    print(f"  CWD: {Path.cwd()}")
+    print(f"  Python: {sys.executable}")
     downloaded = 0
     skipped = 0
     failed = 0
@@ -104,7 +110,7 @@ def main() -> None:
     print(f"\nSummary: {downloaded} downloaded, {skipped} already ok, {failed} failed")
     if failed:
         print("WARNING: Some LFS files could not be downloaded!")
-        sys.exit(1)
+        # Don't exit(1) — let the app start anyway so we can debug via /lifesnaps/debug
 
 
 if __name__ == "__main__":

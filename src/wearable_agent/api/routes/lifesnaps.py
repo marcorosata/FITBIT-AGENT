@@ -49,7 +49,11 @@ def debug_data_files():
     import os
     from wearable_agent.config import _PROJECT_ROOT
 
-    result: dict[str, object] = {"project_root": str(_PROJECT_ROOT), "cwd": os.getcwd()}
+    result: dict[str, object] = {
+        "project_root": str(_PROJECT_ROOT),
+        "cwd": os.getcwd(),
+        "build_version": "v3-urllib",  # bump this to confirm deploy
+    }
 
     candidates = [
         _PROJECT_ROOT / "scripts" / "rais_anonymized",
