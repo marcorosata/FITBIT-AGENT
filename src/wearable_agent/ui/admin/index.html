@@ -387,39 +387,46 @@ textarea { resize: vertical; min-height: 60px; }
     <div id="stream-result" style="margin-top:.4rem;font-size:.82rem;"></div>
   </div>
 
-  <!-- Manual ingest -->
+  <!-- Unified Data Management -->
   <div class="card">
-    <div class="card-title">&#x1F4E5; Manual Data Entry</div>
-    <div class="form-row">
-      <div class="form-group"><label>Participant ID</label><input id="ing-participant" value="P001"></div>
-      <div class="form-group"><label>Device</label>
-        <select id="ing-device"><option value="fitbit">Fitbit</option><option value="apple_watch">Apple Watch</option><option value="garmin">Garmin</option><option value="generic">Generic</option></select>
+    <div class="card-title">&#x1F4E5; Data Management</div>
+    
+    <!-- Manual Entry Tab -->
+    <div style="margin-bottom:1rem">
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:.6rem;color:var(--accent-light)">&#x270F;&#xFE0F; Manual Data Entry</div>
+      <div class="form-row">
+        <div class="form-group"><label>Participant ID</label><select id="ing-participant"></select></div>
+        <div class="form-group"><label>Device</label>
+          <select id="ing-device"><option value="fitbit">Fitbit</option><option value="apple_watch">Apple Watch</option><option value="garmin">Garmin</option><option value="generic">Generic</option></select>
+        </div>
+        <div class="form-group"><label>Metric</label>
+          <select id="ing-metric"></select>
+        </div>
       </div>
-      <div class="form-group"><label>Metric</label>
-        <select id="ing-metric"></select>
+      <div class="form-row">
+        <div class="form-group"><label>Value</label><input id="ing-value" type="number" step="0.1" placeholder="72"></div>
+        <div class="form-group"><label>Unit</label><input id="ing-unit" value="bpm"></div>
+        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="ingestData()">&#x1F4E4; Submit</button></div>
       </div>
+      <div id="ingest-result" style="margin-top:.4rem;font-size:.82rem;"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Value</label><input id="ing-value" type="number" step="0.1" placeholder="72"></div>
-      <div class="form-group"><label>Unit</label><input id="ing-unit" value="bpm"></div>
-      <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="ingestData()">&#x1F4E4; Submit</button></div>
+
+    <!-- Batch Ingest -->
+    <div style="margin-bottom:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:.6rem;color:var(--accent-light)">&#x1F4E6; Batch Ingest (JSON)</div>
+      <textarea id="ing-batch" rows="4" placeholder='[{"participant_id":"P001","device_type":"fitbit","metric_type":"heart_rate","value":72,"unit":"bpm"}]'></textarea>
+      <div style="margin-top:.4rem"><button class="btn btn-primary" onclick="ingestBatch()">&#x1F4E4; Submit Batch</button></div>
+      <div id="batch-result" style="margin-top:.4rem;font-size:.82rem;"></div>
     </div>
-    <div id="ingest-result" style="margin-top:.4rem;font-size:.82rem;"></div>
-  </div>
 
-  <!-- Batch ingest -->
-  <div class="card">
-    <div class="card-title">&#x1F4E6; Batch Ingest (JSON)</div>
-    <textarea id="ing-batch" rows="4" placeholder='[{"participant_id":"P001","device_type":"fitbit","metric_type":"heart_rate","value":72,"unit":"bpm"}]'></textarea>
-    <div style="margin-top:.4rem"><button class="btn btn-primary" onclick="ingestBatch()">&#x1F4E4; Submit Batch</button></div>
-    <div id="batch-result" style="margin-top:.4rem;font-size:.82rem;"></div>
-  </div>
-
-  <!-- Live activity feed -->
-  <div class="card">
-    <div class="card-title">&#x1F4CB; Live Activity Feed <span class="sub" id="feed-count">0 events</span></div>
-    <div class="feed" id="live-feed">
-      <div class="feed-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for data&hellip;</span></div>
+    <!-- Live Activity Feed -->
+    <div style="padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:.6rem;color:var(--accent-light);display:flex;align-items:center;gap:.5rem">
+        &#x1F4CB; Live Activity Feed <span style="font-size:.72rem;color:var(--text2);font-weight:400" id="feed-count">0 events</span>
+      </div>
+      <div class="feed" id="live-feed">
+        <div class="feed-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for data&hellip;</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -431,7 +438,7 @@ textarea { resize: vertical; min-height: 60px; }
   <div class="page-title">&#x1F4C8; Readings</div>
   <div class="card">
     <div class="form-row">
-      <div class="form-group"><label>Participant ID</label><input id="rd-participant" value="P001"></div>
+      <div class="form-group"><label>Participant ID</label><select id="rd-participant"></select></div>
       <div class="form-group"><label>Metric</label><select id="rd-metric"></select></div>
       <div class="form-group"><label>Limit</label><input id="rd-limit" type="number" value="50" min="1" max="1000"></div>
       <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="loadReadings()">&#x1F50D; Query</button></div>
@@ -460,7 +467,7 @@ textarea { resize: vertical; min-height: 60px; }
   <div class="card">
     <div class="card-title">&#x1F52C; AI Participant Evaluation</div>
     <div class="form-row">
-      <div class="form-group"><label>Participant ID</label><input id="eval-participant" value="P001"></div>
+      <div class="form-group"><label>Participant ID</label><select id="eval-participant"></select></div>
       <div class="form-group"><label>Metric</label><select id="eval-metric"></select></div>
       <div class="form-group"><label>Hours</label><input id="eval-hours" type="number" value="24" min="1" max="168"></div>
       <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="evaluateParticipant()">&#x1F916; Evaluate</button></div>
@@ -499,7 +506,7 @@ textarea { resize: vertical; min-height: 60px; }
   <div class="card">
     <div class="card-title">&#x1F514; Alert History</div>
     <div class="form-row" style="margin-bottom:.5rem">
-      <div class="form-group"><label>Participant</label><input id="al-participant" value="P001"></div>
+      <div class="form-group"><label>Participant</label><select id="al-participant"></select></div>
       <div class="form-group" style="justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="loadAlerts()">&#x1F50D; Load Alerts</button></div>
     </div>
     <table>
@@ -716,6 +723,23 @@ function populateMetricSelects() {
   });
 }
 
+// ── Populate participant <select> elements ────
+function populateParticipantSelects() {
+  var selects = ['ing-participant','rd-participant','eval-participant','al-participant'];
+  selects.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var opts = '<option value="">Select participant...</option>';
+    if (participantsList.length) {
+      opts += participantsList.map(function(p) {
+        return '<option value="'+esc(p)+'">'+esc(p)+'</option>';
+      }).join('');
+    }
+    el.innerHTML = opts;
+    if (participantsList.length > 0) el.value = participantsList[0];
+  });
+}
+
 // ── WebSocket ─────────────────────────────────
 function connectWS() {
   var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -787,8 +811,10 @@ async function refreshOverview() {
     document.getElementById('ov-alert-count').textContent = stats.recent_alerts.length + ' recent';
 
     if (stats.participants && stats.participants.length) {
+      participantsList = stats.participants;
+      populateParticipantSelects();
       document.getElementById('participants-list').innerHTML = stats.participants.map(function(p) {
-        return '<span class="badge badge-info" style="margin:.15rem;cursor:pointer" onclick="document.getElementById(\'eval-participant\').value=\''+p+'\'">'+p+'</span>';
+        return '<span class="badge badge-info" style="margin:.15rem;cursor:pointer" onclick="var el=document.getElementById(\'eval-participant\');if(el)el.value=\''+p+'\';">'+p+'</span>';
       }).join('');
     } else {
       document.getElementById('participants-list').textContent = 'No participants found yet.';
