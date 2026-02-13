@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'models.dart';
 
@@ -402,6 +403,70 @@ class ApiClient {
     if (metrics != null) body['metrics'] = metrics;
     return await _post('/sync/stream/$participantId', body)
         as Map<String, dynamic>;
+  }
+
+  // ── Voice chat ────────────────────────────────────────────
+
+  /// Send a voice recording to the backend for transcription + agent analysis.
+  /// Returns a map with 'transcript' and 'response' keys.
+  Future<Map<String, String>> voiceChat(
+    String filePath, {
+    String participantId = '',
+  }) async {
+    final uri = _uri('/media/voice-chat');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['participant_id'] = participantId;
+
+    final ext = filePath.split('.').last.toLowerCase();
+    final mimeType = switch (ext) {
+      'wav' => MediaType('audio', 'wav'),
+      'mp3' => MediaType('audio', 'mpeg'),
+      'm4a' => MediaType('audio', 'mp4'),
+      'aac' => MediaType('audio', 'aac'),
+      'ogg' => MediaType('audio', 'ogg'),
+      _ => MediaType('audio', 'webm'),
+    };
+
+    request.files.add(await http.MultipartFile.fromPath(
+      'file',
+      filePath,
+      contentType: mimeType,
+    ));
+
+    final streamed = await request.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode >= 400) {
+      throw ApiException(streamed.statusCode, body);
+    }
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    return {
+      'transcript': (data['transcript'] as String?) ?? '',
+      'response': (data['response'] as String?) ?? '',
+    };
+  }
+
+  // ── Media upload ─────────────────────────────────────────
+
+  /// Upload an audio or video file linked to a participant.
+  Future<Map<String, dynamic>> uploadMedia(
+    String filePath, {
+    required String participantId,
+    String label = '',
+    String notes = '',
+  }) async {
+    final uri = _uri('/media/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['participant_id'] = participantId;
+    request.fields['label'] = label;
+    request.fields['notes'] = notes;
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    final streamed = await request.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode >= 400) {
+      throw ApiException(streamed.statusCode, body);
+    }
+    return jsonDecode(body) as Map<String, dynamic>;
   }
 
   // ── WebSocket ────────────────────────────────────────────

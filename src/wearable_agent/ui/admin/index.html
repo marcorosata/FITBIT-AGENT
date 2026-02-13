@@ -405,6 +405,7 @@ textarea { resize: vertical; min-height: 60px; }
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchDataTab('feed')">&#x1F4CB; Activity Feed</button>
       <button class="tab-btn" onclick="switchDataTab('live')">&#x1F4F2; Live Data to App</button>
+      <button class="tab-btn" onclick="switchDataTab('media')">&#x1F3A5; Media</button>
       <button class="tab-btn" onclick="switchDataTab('ingest')">&#x1F4E5; Ingest Data</button>
       <button class="tab-btn" onclick="switchDataTab('query')">&#x1F50D; Query &amp; Evaluate</button>
     </div>
@@ -422,6 +423,55 @@ textarea { resize: vertical; min-height: 60px; }
 
   <!-- ── TAB: Live Data to App ──────────────── -->
   <div class="tab-panel" id="tab-live">
+
+  <!-- ── TAB: Media Upload ──────────────────── -->
+  <div class="tab-panel" id="tab-media">
+    <div class="card" style="border-left:3px solid #a29bfe">
+      <div class="card-title">&#x1F3A5; Upload Audio / Video</div>
+      <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem;">
+        Upload an audio recording or video file and link it to a participant. Supported: MP3, WAV, M4A, OGG, AAC, FLAC, MP4, MOV, AVI, MKV, WebM.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Participant ID</label>
+          <select id="media-participant"></select>
+        </div>
+        <div class="form-group">
+          <label>Label / Description</label>
+          <input id="media-label" placeholder="e.g. Morning interview, Stress recording&hellip;">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>File</label>
+          <input type="file" id="media-file" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.aac,.flac,.mp4,.mov,.avi,.mkv,.webm" style="font-size:.82rem">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input id="media-notes" placeholder="Optional notes&hellip;">
+        </div>
+        <div class="form-group" style="justify-content:flex-end">
+          <button class="btn btn-primary" id="media-upload-btn" onclick="uploadMedia()">&#x1F4E4; Upload</button>
+        </div>
+      </div>
+      <div id="media-upload-result" style="margin-top:.4rem;font-size:.82rem;"></div>
+    </div>
+
+    <!-- Media Library -->
+    <div class="card">
+      <div class="card-title">&#x1F4DA; Media Library <span class="sub" id="media-count">0 files</span>
+        <button class="btn btn-outline btn-sm" onclick="loadMediaLibrary()" style="margin-left:.5rem">&#x1F504; Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Type</th><th>Participant</th><th>Label</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+          <tbody id="media-body"><tr><td colspan="7" style="color:var(--text3)">No media uploaded yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Live Data to App (continued) ──── -->
     <!-- Throughput stats bar -->
     <div class="card" style="padding:.5rem .85rem">
       <div class="data-stats-bar">
@@ -777,7 +827,7 @@ function populateMetricSelects() {
 
 // ── Populate participant <select> elements ────
 function populateParticipantSelects() {
-  var selects = ['ing-participant','rd-participant','eval-participant','al-participant','stream-participant'];
+  var selects = ['ing-participant','rd-participant','eval-participant','al-participant','stream-participant','media-participant'];
   selects.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -876,12 +926,77 @@ function switchDataTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('tab-' + tab).classList.add('active');
   // Highlight the clicked tab button
+  var tabLabels = { live: 'live data', ingest: 'ingest', query: 'query', feed: 'feed', media: 'media' };
   document.querySelectorAll('.tab-btn').forEach(function(b) {
-    if (b.textContent.toLowerCase().indexOf(tab === 'live' ? 'live data' : tab === 'ingest' ? 'ingest' : tab === 'query' ? 'query' : 'feed') !== -1) {
+    if (b.textContent.toLowerCase().indexOf(tabLabels[tab] || tab) !== -1) {
       b.classList.add('active');
     }
   });
   if (tab === 'live') { renderLiveTable(); pollServerStreamStats(); }
+  if (tab === 'media') { loadMediaLibrary(); }
+}
+
+// ── Media Upload & Library ────────────────────
+async function uploadMedia() {
+  var pid = document.getElementById('media-participant').value;
+  var label = document.getElementById('media-label').value.trim();
+  var notes = document.getElementById('media-notes').value.trim();
+  var fileInput = document.getElementById('media-file');
+  var resultEl = document.getElementById('media-upload-result');
+  if (!pid) { resultEl.innerHTML = '<span style="color:var(--warning)">\u26A0 Select a participant.</span>'; return; }
+  if (!fileInput.files.length) { resultEl.innerHTML = '<span style="color:var(--warning)">\u26A0 Choose a file.</span>'; return; }
+  var btn = document.getElementById('media-upload-btn');
+  btn.disabled = true; btn.textContent = '\u23F3 Uploading\u2026';
+  resultEl.innerHTML = '';
+  var form = new FormData();
+  form.append('file', fileInput.files[0]);
+  form.append('participant_id', pid);
+  form.append('label', label);
+  form.append('notes', notes);
+  try {
+    var r = await fetch(API + '/media/upload', { method: 'POST', body: form });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()));
+    var data = await r.json();
+    resultEl.innerHTML = '<span style="color:var(--success)">\u2713 Uploaded <strong>' + esc(data.filename) + '</strong> (' + data.media_type + ', ' + data.size_kb + ' KB)</span>';
+    fileInput.value = '';
+    addFeed('system', 'Media uploaded: ' + data.media_type + ' for ' + pid);
+    loadMediaLibrary();
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--danger)">\u2715 ' + esc(e.message) + '</span>';
+  }
+  btn.disabled = false; btn.textContent = '\uD83D\uDCE4 Upload';
+}
+
+async function loadMediaLibrary() {
+  try {
+    var data = await apiCall('GET', '/media');
+    document.getElementById('media-count').textContent = data.length + ' files';
+    var typeIcons = { audio: '\uD83C\uDFA7', video: '\uD83C\uDFA5' };
+    var typeColors = { audio: '#a29bfe', video: '#fd79a8' };
+    document.getElementById('media-body').innerHTML = data.length
+      ? data.map(function(m) {
+          var ic = typeIcons[m.media_type] || '\uD83D\uDCC1';
+          var tc = typeColors[m.media_type] || 'var(--text2)';
+          return '<tr><td><span style="color:'+tc+';font-weight:600">'+ic+' '+m.media_type+'</span></td>'+
+            '<td>'+esc(m.participant_id)+'</td>'+
+            '<td>'+esc(m.label)+'</td>'+
+            '<td style="font-size:.78rem;color:var(--text2)">'+esc(m.filename)+'</td>'+
+            '<td>'+m.size_kb+' KB</td>'+
+            '<td style="font-size:.76rem">'+fmtDate(m.uploaded_at)+'</td>'+
+            '<td><button class="btn btn-danger btn-sm" onclick="deleteMedia(\''+m.id+'\')">\u2715</button></td></tr>';
+        }).join('')
+      : '<tr><td colspan="7" style="color:var(--text3)">No media uploaded yet.</td></tr>';
+  } catch(e) {
+    document.getElementById('media-body').innerHTML = '<tr><td colspan="7" style="color:var(--danger)">'+esc(e.message)+'</td></tr>';
+  }
+}
+
+async function deleteMedia(id) {
+  try {
+    await apiCall('DELETE', '/media/' + id);
+    addFeed('system', 'Media deleted: ' + id);
+    loadMediaLibrary();
+  } catch(e) { alert('Delete failed: ' + e.message); }
 }
 
 // ── Live data dashboard ───────────────────────

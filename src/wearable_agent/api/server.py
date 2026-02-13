@@ -26,6 +26,7 @@ from wearable_agent.api.routes.participants import router as participants_router
 from wearable_agent.api.routes.rules import router as rules_router
 from wearable_agent.api.routes.sync import router as sync_router, set_scheduler
 from wearable_agent.api.routes.lifesnaps import router as lifesnaps_router, set_pipeline as set_lifesnaps_pipeline
+from wearable_agent.api.routes.media import router as media_router
 from wearable_agent.api.websocket import ws_manager
 from wearable_agent.config import get_settings, _PROJECT_ROOT
 from wearable_agent.models import SensorReading
@@ -232,3 +233,4 @@ app.include_router(auth_router)
 app.include_router(participants_router)
 app.include_router(sync_router)
 app.include_router(lifesnaps_router)
+app.include_router(media_router)
