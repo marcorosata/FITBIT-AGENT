@@ -39,6 +39,7 @@ dependencies = [
     "structlog>=24.0",
     "apscheduler>=3.10,<4.0",
     "websockets>=14.0,<15.0",
+    "python-multipart>=0.0.9,<1.0",
 ]
 
 [project.optional-dependencies]
