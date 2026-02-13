@@ -242,9 +242,7 @@ textarea { resize: vertical; min-height: 60px; }
   <div class="nav-item active" data-page="overview">&#x1F3E0; Overview</div>
   <div class="nav-item" data-page="sensors">&#x1F4A0; Sensors &amp; Metrics</div>
   <div class="nav-label">Data</div>
-  <div class="nav-item" data-page="collection">&#x1F4E1; Data Collection</div>
-  <div class="nav-item" data-page="readings">&#x1F4C8; Readings</div>
-  <div class="nav-item" data-page="participants">&#x1F465; Participants</div>
+  <div class="nav-item" data-page="data">&#x1F4CA; Data Management</div>
   <div class="nav-label">Monitoring</div>
   <div class="nav-item" data-page="rules">&#x1F6E1;&#xFE0F; Rules &amp; Alerts</div>
   <div class="nav-label">Intelligence</div>
@@ -345,10 +343,10 @@ textarea { resize: vertical; min-height: 60px; }
 </div>
 
 <!-- ════════════════════════════════════════════
-     DATA COLLECTION — Start streams, control flow
+     DATA MANAGEMENT — Unified data interface
      ════════════════════════════════════════════ -->
-<div class="page" id="page-collection">
-  <div class="page-title">&#x1F4E1; Data Collection</div>
+<div class="page" id="page-data">
+  <div class="page-title">&#x1F4CA; Data Management</div>
 
   <!-- Stream control -->
   <div class="card" style="border-left:3px solid var(--accent)">
@@ -429,14 +427,10 @@ textarea { resize: vertical; min-height: 60px; }
       </div>
     </div>
   </div>
-</div>
 
-<!-- ════════════════════════════════════════════
-     READINGS — Query stored data
-     ════════════════════════════════════════════ -->
-<div class="page" id="page-readings">
-  <div class="page-title">&#x1F4C8; Readings</div>
+  <!-- Readings Section -->
   <div class="card">
+    <div class="card-title">&#x1F4C8; Query Readings</div>
     <div class="form-row">
       <div class="form-group"><label>Participant ID</label><select id="rd-participant"></select></div>
       <div class="form-group"><label>Metric</label><select id="rd-metric"></select></div>
@@ -453,13 +447,8 @@ textarea { resize: vertical; min-height: 60px; }
       </table>
     </div>
   </div>
-</div>
 
-<!-- ════════════════════════════════════════════
-     PARTICIPANTS
-     ════════════════════════════════════════════ -->
-<div class="page" id="page-participants">
-  <div class="page-title">&#x1F465; Participants</div>
+  <!-- Participants Section -->
   <div class="card">
     <div class="card-title">Enrolled Participants</div>
     <div id="participants-list" style="color:var(--text2);font-size:.84rem;">Loading&hellip;</div>
