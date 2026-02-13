@@ -368,6 +368,25 @@ class ApiClient {
     return (data as List<dynamic>).map((e) => e.toString()).toList();
   }
 
+  /// Sync (bulk-load) a participant's LifeSnaps data into the server DB.
+  /// Returns once the sync is started; data loads in background.
+  Future<Map<String, dynamic>> syncParticipantData(
+    String participantId, {
+    bool force = false,
+  }) async {
+    final path = force
+        ? '/lifesnaps/sync/$participantId?force=true'
+        : '/lifesnaps/sync/$participantId';
+    return await _postEmpty(path) as Map<String, dynamic>;
+  }
+
+  /// Check whether a participant's data has been synced.
+  Future<Map<String, dynamic>> getSyncParticipantStatus(
+      String participantId) async {
+    return await _get('/lifesnaps/sync/$participantId/status')
+        as Map<String, dynamic>;
+  }
+
   // ── Live Fitbit streaming ─────────────────────────────────
 
   /// Start streaming live Fitbit data for a participant.

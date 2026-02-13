@@ -419,6 +419,8 @@ textarea { resize: vertical; min-height: 60px; }
         <div class="data-stat"><div class="ds-val" id="ds-alerts" style="color:#fdcb6e">0</div><div class="ds-label">Alerts Sent</div></div>
         <div class="data-stat"><div class="ds-val" id="ds-affect" style="color:#a29bfe">0</div><div class="ds-label">Affect Inferences</div></div>
         <div class="data-stat"><div class="ds-val" id="ds-rate" style="color:#00cec9">0</div><div class="ds-label">Readings / sec</div></div>
+        <div class="data-stat"><div class="ds-val" id="ds-clients" style="color:#55efc4">-</div><div class="ds-label">Connected Clients</div></div>
+        <div class="data-stat"><div class="ds-val" id="ds-server-rate" style="color:#74b9ff">-</div><div class="ds-label">Server Out/sec</div></div>
       </div>
     </div>
 
@@ -878,6 +880,7 @@ function switchDataTab(tab) {
       b.classList.add('active');
     }
   });
+  if (tab === 'live') { renderLiveTable(); pollServerStreamStats(); }
 }
 
 // ── Live data dashboard ───────────────────────
@@ -936,6 +939,20 @@ function renderLiveTable() {
     return '<tr><td>'+r.ts+'</td><td>'+esc(r.participant)+'</td><td>'+esc(r.metric)+'</td><td>'+esc(String(r.value))+'</td><td>'+esc(r.unit)+'</td><td><span style="color:'+tc+';font-weight:600;font-size:.72rem;text-transform:uppercase">'+r.type+'</span></td></tr>';
   }).join('');
 }
+
+// ── Server-side stream stats polling ──────────
+async function pollServerStreamStats() {
+  try {
+    var data = await apiCall('GET', '/admin/api/stream-stats');
+    var el;
+    el = document.getElementById('ds-clients');
+    if (el) el.textContent = (data.connections && data.connections.total != null) ? data.connections.total : '-';
+    el = document.getElementById('ds-server-rate');
+    if (el && data.throughput) el.textContent = (data.throughput.outbound_rate_per_sec || 0).toFixed(1);
+  } catch(e) {}
+}
+// Poll server stats every 5s when on live tab
+setInterval(function() { if (activeDataTab === 'live') pollServerStreamStats(); }, 5000);
 
 // ── Overview ──────────────────────────────────
 async function refreshOverview() {
@@ -1400,6 +1417,7 @@ refreshComponents();
 loadRules();
 loadToolsInventory();
 loadLifeSnapsParticipants();
+pollServerStreamStats();
 
 setInterval(refreshOverview, 15000);
 setInterval(refreshComponents, 10000);

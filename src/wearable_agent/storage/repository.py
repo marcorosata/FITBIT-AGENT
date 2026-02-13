@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wearable_agent.affect.models import (
@@ -84,6 +84,31 @@ class ReadingRepository(BaseRepository):
         return len(rows)
 
     # ── Read ──────────────────────────────────────────────────
+
+    async def count_for_participant(self, participant_id: str) -> int:
+        """Count total readings stored for a participant."""
+        session = await self._session()
+        stmt = (
+            select(func.count())
+            .select_from(SensorReadingRow)
+            .where(SensorReadingRow.participant_id == participant_id)
+        )
+        result = await session.execute(stmt)
+        return result.scalar() or 0
+
+    async def delete_for_participant(self, participant_id: str) -> int:
+        """Delete all readings for a participant. Returns count deleted."""
+        from sqlalchemy import delete as sa_delete
+
+        session = await self._session()
+        # Count first
+        count = await self.count_for_participant(participant_id)
+        stmt = sa_delete(SensorReadingRow).where(
+            SensorReadingRow.participant_id == participant_id
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return count
 
     async def get_latest(
         self,

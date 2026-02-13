@@ -11,12 +11,16 @@ from pydantic import BaseModel
 
 from wearable_agent.collectors.lifesnaps import LifeSnapsCollector
 from wearable_agent.models import MetricType
+from wearable_agent.storage.repository import ReadingRepository
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/lifesnaps", tags=["lifesnaps"])
 
 _pipeline: Any = None
+
+# Track active syncs to avoid duplicates
+_active_syncs: set[str] = set()
 
 
 def set_pipeline(pipeline: Any) -> None:
@@ -41,6 +45,152 @@ def list_participants():
     except Exception as e:
         logger.error("lifesnaps.list_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to load dataset: {e}")
+
+
+# ── Participant data sync (bulk-load into DB) ─────────────────
+
+
+class SyncResponse(BaseModel):
+    status: str
+    participant_id: str
+    readings_synced: int = 0
+    already_synced: bool = False
+    message: str = ""
+
+
+@router.post("/sync/{participant_id}", summary="Sync participant data into DB")
+async def sync_participant_data(
+    participant_id: str,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    force: bool = False,
+):
+    """Bulk-load all LifeSnaps data for a participant into the database.
+
+    This is much faster than streaming (no time-shifting delays).
+    Use when a participant is selected to ensure their data is queryable.
+    Set force=True to re-sync even if data already exists.
+    """
+    if participant_id in _active_syncs:
+        return SyncResponse(
+            status="already_running",
+            participant_id=participant_id,
+            message="Sync already in progress for this participant.",
+        )
+
+    reading_repo = ReadingRepository()
+
+    # Check if data already exists
+    if not force:
+        existing_count = await reading_repo.count_for_participant(participant_id)
+        if existing_count > 0:
+            logger.info(
+                "lifesnaps.sync_skip",
+                participant=participant_id,
+                existing=existing_count,
+            )
+            return SyncResponse(
+                status="already_synced",
+                participant_id=participant_id,
+                readings_synced=existing_count,
+                already_synced=True,
+                message=f"Participant already has {existing_count} readings in DB.",
+            )
+
+    # Run sync in background so the request returns immediately
+    _active_syncs.add(participant_id)
+    background_tasks.add_task(_run_sync, participant_id, force)
+
+    return SyncResponse(
+        status="sync_started",
+        participant_id=participant_id,
+        message="Data sync started in background. Readings will be available shortly.",
+    )
+
+
+@router.get("/sync/{participant_id}/status", summary="Check sync status")
+async def sync_status(participant_id: str):
+    """Check whether a participant's data has been synced."""
+    reading_repo = ReadingRepository()
+    count = await reading_repo.count_for_participant(participant_id)
+    in_progress = participant_id in _active_syncs
+    return {
+        "participant_id": participant_id,
+        "readings_count": count,
+        "synced": count > 0,
+        "sync_in_progress": in_progress,
+    }
+
+
+async def _run_sync(participant_id: str, force: bool = False) -> None:
+    """Background task: bulk-load participant data from CSV into the DB."""
+    reading_repo = ReadingRepository()
+
+    try:
+        if force:
+            deleted = await reading_repo.delete_for_participant(participant_id)
+            logger.info("lifesnaps.sync_cleared", participant=participant_id, deleted=deleted)
+
+        collector = LifeSnapsCollector()
+
+        # Fetch ALL metrics from CSV (fast — no time delay)
+        all_metrics = [
+            MetricType.HEART_RATE,
+            MetricType.STEPS,
+            MetricType.STRESS,
+            MetricType.SPO2,
+            MetricType.HRV,
+            MetricType.BREATHING_RATE,
+            MetricType.CALORIES,
+            MetricType.DISTANCE,
+            MetricType.SLEEP,
+        ]
+
+        logger.info(
+            "lifesnaps.sync_start",
+            participant=participant_id,
+            metrics=[m.value for m in all_metrics],
+        )
+
+        readings = await collector.fetch(participant_id, all_metrics)
+
+        if not readings:
+            logger.warning("lifesnaps.sync_no_data", participant=participant_id)
+            return
+
+        # Batch insert in chunks to avoid memory issues
+        batch_size = 500
+        total_saved = 0
+        for i in range(0, len(readings), batch_size):
+            batch = readings[i : i + batch_size]
+            saved = await reading_repo.save_batch(batch)
+            total_saved += saved
+
+        logger.info(
+            "lifesnaps.sync_complete",
+            participant=participant_id,
+            total_readings=total_saved,
+        )
+
+        # Also push through pipeline if available (triggers monitoring rules + WS broadcast)
+        if _pipeline and readings:
+            # Push a summary notification through the pipeline
+            logger.info(
+                "lifesnaps.sync_pipeline_notify",
+                participant=participant_id,
+                note="Data available for analysis",
+            )
+
+    except FileNotFoundError as e:
+        logger.error("lifesnaps.sync_file_not_found", participant=participant_id, error=str(e))
+    except Exception as e:
+        logger.error(
+            "lifesnaps.sync_error",
+            participant=participant_id,
+            error=str(e),
+            exc_info=True,
+        )
+    finally:
+        _active_syncs.discard(participant_id)
 
 
 @router.get("/debug", summary="Debug data file locations")

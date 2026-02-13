@@ -74,7 +74,12 @@ class AppState extends ChangeNotifier {
     if (_participantId.isNotEmpty) {
       // Schedule refreshAll for after the first frame to avoid setState during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        refreshAll();
+        // Sync data then refresh
+        if (_useDataset) {
+          syncParticipantDataToServer().then((_) => refreshAll());
+        } else {
+          refreshAll();
+        }
       });
     }
   }
@@ -90,6 +95,11 @@ class AppState extends ChangeNotifier {
         await _api.createParticipant(_participantId);
       } catch (_) {
         // 409 = already exists — perfectly fine
+      }
+      // Sync participant's LifeSnaps data into the server DB
+      // (runs in background on server; skips if already synced)
+      if (_useDataset) {
+        await syncParticipantDataToServer();
       }
       await refreshAll();
     }
@@ -109,7 +119,60 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     // Refresh data with new source
     if (hasParticipant) {
+      // When switching to dataset mode, ensure data is synced to server
+      if (_useDataset) {
+        await syncParticipantDataToServer();
+      }
       await refreshAll();
+    }
+  }
+
+  // ── Server data sync ───────────────────────────────────────
+
+  /// Ask the server to bulk-load this participant's LifeSnaps data.
+  /// Runs in background on server. Skips if already synced.
+  Future<void> syncParticipantDataToServer({bool force = false}) async {
+    if (!hasParticipant) return;
+    try {
+      final result = await _api.syncParticipantData(
+        _participantId,
+        force: force,
+      );
+      final status = result['status'] as String? ?? '';
+      if (status == 'already_synced') {
+        // Data already in DB — no action needed
+      } else if (status == 'sync_started') {
+        // Sync running in background — poll until done or timeout
+        _pollSyncStatus();
+      }
+    } catch (e) {
+      // Non-critical — data may still be queryable from prior syncs
+      _error = 'Data sync: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Poll sync status in background so we can refresh once data is ready.
+  Future<void> _pollSyncStatus() async {
+    const maxPolls = 30; // ~30 seconds max
+    for (var i = 0; i < maxPolls; i++) {
+      await Future.delayed(const Duration(seconds: 1));
+      try {
+        final status = await _api.getSyncParticipantStatus(_participantId);
+        final synced = status['synced'] as bool? ?? false;
+        final inProgress = status['sync_in_progress'] as bool? ?? false;
+        if (synced && !inProgress) {
+          // Data ready — refresh readings
+          await fetchReadings();
+          return;
+        }
+        if (!inProgress && !synced) {
+          // Sync finished but no data — stop polling
+          return;
+        }
+      } catch (_) {
+        return; // Server unreachable — stop polling
+      }
     }
   }
 
