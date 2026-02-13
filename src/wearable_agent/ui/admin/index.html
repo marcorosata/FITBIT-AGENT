@@ -1174,12 +1174,20 @@ function onStreamSourceChange() {
 async function loadLifeSnapsParticipants() {
   try {
     var data = await apiCall('GET', '/lifesnaps/participants');
+    var sel = document.getElementById('stream-participant');
     var hint = document.getElementById('stream-participants-hint');
     var list = document.getElementById('stream-participants-list');
-    hint.style.display = 'block';
     if (data.length) {
-      list.innerHTML = data.slice(0,30).map(function(p) { return '<span style="cursor:pointer;color:var(--accent-light);margin-right:.35rem" onclick="document.getElementById(\'stream-participant\').value=\''+p+'\'">'+p+'</span>'; }).join('') + (data.length>30 ? '<em> +' + (data.length-30) + ' more</em>' : '');
-    } else { list.textContent = 'No participants found.'; }
+      sel.innerHTML = data.map(function(p) {
+        return '<option value="'+esc(p)+'">'+esc(p)+'</option>';
+      }).join('');
+      hint.style.display = 'block';
+      list.textContent = data.length + ' participants loaded';
+    } else {
+      sel.innerHTML = '<option value="">No participants found</option>';
+      hint.style.display = 'block';
+      list.textContent = 'No participants found.';
+    }
   } catch(e) { document.getElementById('stream-result').innerHTML = '<span style="color:var(--danger)">\u2715 '+e.message+'</span>'; }
 }
 
@@ -1244,6 +1252,7 @@ refreshOverview();
 refreshComponents();
 loadRules();
 loadToolsInventory();
+loadLifeSnapsParticipants();
 
 setInterval(refreshOverview, 15000);
 setInterval(refreshComponents, 10000);
