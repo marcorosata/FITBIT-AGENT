@@ -362,7 +362,7 @@ textarea { resize: vertical; min-height: 60px; }
       <div class="form-group">
         <label>Participant ID</label>
         <div style="display:flex;gap:.35rem">
-          <input id="stream-participant" placeholder="e.g. 6260e01eba" style="flex:1">
+          <select id="stream-participant" style="flex:1"></select>
           <button class="btn btn-outline btn-sm" onclick="loadLifeSnapsParticipants()" title="Load available">&#x1F504;</button>
         </div>
       </div>
@@ -714,7 +714,7 @@ function populateMetricSelects() {
 
 // ── Populate participant <select> elements ────
 function populateParticipantSelects() {
-  var selects = ['ing-participant','rd-participant','eval-participant','al-participant'];
+  var selects = ['ing-participant','rd-participant','eval-participant','al-participant','stream-participant'];
   selects.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
