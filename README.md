@@ -3,7 +3,7 @@
 > Agent-based software framework for collecting and analysing data from wearable devices in behavioral, health, and social research.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)]()
+[![License: Radboud University](https://img.shields.io/badge/License-Radboud%20University-red.svg)]()
 
 ---
 
@@ -214,7 +214,7 @@ src/wearable_agent/
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+Proprietary — Radboud University. All rights reserved.
 
 ---
 

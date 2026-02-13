@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![Flutter](https://img.shields.io/badge/Flutter-3.16+-02569B.svg)](https://flutter.dev)
 [![Tests](https://img.shields.io/badge/tests-46%20passed-success)](tests/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Radboud%20University-red.svg)]()
 
 **Agent-based framework for wearable data collection, real-time monitoring, and AI-powered health analysis.** Built for research studies combining physiological signals (Fitbit, wearables) with intelligent alerting and affective state inference.
 
@@ -381,7 +381,7 @@ Contributions welcome! Please:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file.
+Proprietary — Radboud University. All rights reserved.
 
 ---
 
