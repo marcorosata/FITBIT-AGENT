@@ -10,7 +10,7 @@ import 'models.dart';
 
 class ApiClient {
   String baseUrl;
-  String dataSource = 'dataset';  // 'dataset' or 'live'
+  String dataSource = 'dataset'; // 'dataset' or 'live'
 
   ApiClient({required this.baseUrl});
 
@@ -467,6 +467,18 @@ class ApiClient {
       throw ApiException(streamed.statusCode, body);
     }
     return jsonDecode(body) as Map<String, dynamic>;
+  }
+
+  // ── Agent Tools ──────────────────────────────────────────
+
+  /// Test an agent tool directly via the admin API.
+  Future<Map<String, dynamic>> testAgentTool(
+      String toolName, Map<String, dynamic> parameters) async {
+    final data = await _post('/admin/api/tools/test', {
+      'tool_name': toolName,
+      'parameters': parameters,
+    });
+    return data as Map<String, dynamic>;
   }
 
   // ── WebSocket ────────────────────────────────────────────
