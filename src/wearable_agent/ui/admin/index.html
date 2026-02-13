@@ -403,15 +403,25 @@ textarea { resize: vertical; min-height: 60px; }
   <!-- Tab bar -->
   <div class="card" style="padding-bottom:0">
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchDataTab('live')">&#x1F4F2; Live Data to App</button>
+      <button class="tab-btn active" onclick="switchDataTab('feed')">&#x1F4CB; Activity Feed</button>
+      <button class="tab-btn" onclick="switchDataTab('live')">&#x1F4F2; Live Data to App</button>
       <button class="tab-btn" onclick="switchDataTab('ingest')">&#x1F4E5; Ingest Data</button>
       <button class="tab-btn" onclick="switchDataTab('query')">&#x1F50D; Query &amp; Evaluate</button>
-      <button class="tab-btn" onclick="switchDataTab('feed')">&#x1F4CB; Activity Feed</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: Activity Feed ─────────────────── -->
+  <div class="tab-panel active" id="tab-feed">
+    <div class="card">
+      <div class="card-title">&#x1F4CB; Live Activity Feed <span class="sub" id="feed-count">0 events</span></div>
+      <div class="feed" id="live-feed">
+        <div class="feed-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for data&hellip;</span></div>
+      </div>
     </div>
   </div>
 
   <!-- ── TAB: Live Data to App ──────────────── -->
-  <div class="tab-panel active" id="tab-live">
+  <div class="tab-panel" id="tab-live">
     <!-- Throughput stats bar -->
     <div class="card" style="padding:.5rem .85rem">
       <div class="data-stats-bar">
@@ -507,15 +517,6 @@ textarea { resize: vertical; min-height: 60px; }
     </div>
   </div>
 
-  <!-- ── TAB: Activity Feed ─────────────────── -->
-  <div class="tab-panel" id="tab-feed">
-    <div class="card">
-      <div class="card-title">&#x1F4CB; Live Activity Feed <span class="sub" id="feed-count">0 events</span></div>
-      <div class="feed" id="live-feed">
-        <div class="feed-entry"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text3)">Waiting for data&hellip;</span></div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- ════════════════════════════════════════════
